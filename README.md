@@ -2,7 +2,7 @@
 
 購買前的情境換裝畫布。Flutter 3.47.8 / Dart 3.13.7，本機優先，不需帳號或 API 金鑰。
 
-**公開 App：[穿搭預演](https://alice030-lab.github.io/cloth/)**。GitHub Pages 已部署成功，[部署紀錄](https://github.com/alice030-lab/cloth/actions/runs/40468669688)。
+**公開 App：[穿搭預演](http://app.uslinkyou.com/)**。自訂網域根路徑已部署成功，[部署紀錄](https://github.com/alice030-lab/cloth/actions/runs/40470732019)。目前 GitHub 憑證仍在準備，HTTPS 尚未強制啟用；就緒後應使用 HTTPS。
 
 **目前已完成真正 Flutter Web 編譯與核心操作驗證。** 靜態分析零問題、31 項 Flutter 測試與 3 項輔助工具測試通過。Chromium 已驗證試玩、主題、體型面板、PNG 匯入、作品儲存／重新載入／重開、PNG 匯出與離線重載。[A01–A20 驗收表](docs/ACCEPTANCE.md) 區分通過與未測項目；iOS／Android 原生去背、實機多指操作與完整 P0 尚未全部驗證。
 
@@ -66,7 +66,7 @@ flutter --suppress-analytics run -d <裝置ID>
 
 ## 已知限制
 
-- 已部署到 GitHub Pages 預設網址。`app.uslinkyou.com` 尚未綁定；需在 Pages Custom domain 與 DNS 管理處設定，再重新執行部署。
+- 已部署並綁定 `app.uslinkyou.com`，HTTP 首頁與 JavaScript 在 GitHub runner 檢查通過；GitHub 憑證仍為 new，待 DNS 檢查更新與 HTTPS 憑證完成後啟用 Enforce HTTPS。
 - 原生建置、ML、分享與權限，實體裝置雙指手勢、70 張去背樣本、10 位目標使用者研究仍待完成。
 - L1 是時裝畫，並非照片級替身；正式美術的滿意度尚待使用者驗收。
 - Android 單一 instance 選取尚未完成，需手動擦除修正。
