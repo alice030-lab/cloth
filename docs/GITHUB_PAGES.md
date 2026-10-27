@@ -1,6 +1,8 @@
 # GitHub Pages / app.uslinkyou.com
 
-目標 repository：alice030-lab/cloth，部署分支 main，正式自訂網域 app.uslinkyou.com。
+目標 repository：alice030-lab/cloth，部署分支 main，預定自訂網域 app.uslinkyou.com。
+
+目前已公開並成功部署到 https://alice030-lab.github.io/cloth/ 。部署紀錄為 https://github.com/alice030-lab/cloth/actions/runs/40468669688 。Pages 的 Custom domain 仍為空，app.uslinkyou.com 尚未生效；GitHub 整合不允許修改該管理設定，需要帳號持有人設定，DNS 也尚未驗證。
 
 ## 已加入的程式設定
 

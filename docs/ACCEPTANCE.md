@@ -2,7 +2,7 @@
 
 已解除官方 SDK 下載阻擋。Flutter **3.47.8**、Dart **3.13.7** 已安裝，依賴已解析並保存 pubspec.lock。此報告取代先前「尚未下載 SDK」版本。
 
-目前結論：**Web 核心操作鏈已驗證，全平台 P0 尚未完成。** 不將原生未測項目、主觀美術驗收或使用者研究標為通過。沒有公開網址部署；本機 HTTP 伺服器只供內部測試。
+目前結論：**Web 核心操作鏈已驗證，全平台 P0 尚未完成。** 不將原生未測項目、主觀美術驗收或使用者研究標為通過。已部署到 https://alice030-lab.github.io/cloth/ ，GitHub Actions run 40468669688 的 build、deploy 與公開首頁／main.dart.js 的 HTTPS 檢查均通過。相同 /cloth/ 產物在本機 Chromium 完整流程與離線測試通過。執行環境對 github.io 的直接外連受代理限制，未宣稱在此瀏覽器對外站做完整互動驗收。自訂網域 app.uslinkyou.com 尚未綁定。
 
 ## 實際結果
 
