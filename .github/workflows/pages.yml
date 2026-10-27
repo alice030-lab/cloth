@@ -15,6 +15,9 @@ concurrency:
 jobs:
   build:
     runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      pages: read
     steps:
       - uses: actions/checkout@v4
       - uses: subosito/flutter-action@v2
@@ -29,17 +32,11 @@ jobs:
           flutter --suppress-analytics analyze
           flutter --suppress-analytics test --reporter expanded
           python3 -m unittest discover -s tool -p 'test_*.py' -v
-      - name: Choose public asset base
-        id: site
-        shell: bash
-        run: |
-          if [[ -s web/CNAME ]]; then
-            echo 'base=/' >> "$GITHUB_OUTPUT"
-          else
-            echo "base=/${GITHUB_REPOSITORY#*/}/" >> "$GITHUB_OUTPUT"
-          fi
+      - name: Read active Pages URL
+        id: pages
+        uses: actions/configure-pages@v5
       - name: Build static site
-        run: flutter --suppress-analytics build web --release --no-web-resources-cdn --base-href='${{ steps.site.outputs.base }}'
+        run: flutter --suppress-analytics build web --release --no-web-resources-cdn --base-href='${{ steps.pages.outputs.base_path }}/'
       - name: Prepare Pages and offline cache
         run: |
           python3 tool/prepare_pages.py
@@ -62,3 +59,10 @@ jobs:
       - name: Deploy
         id: deployment
         uses: actions/deploy-pages@v4
+      - name: Verify published entry and JavaScript
+        env:
+          SITE_URL: ${{ steps.deployment.outputs.page_url }}
+        run: |
+          curl --fail --location --retry 8 --retry-all-errors --retry-delay 5 "${SITE_URL%/}/" -o /tmp/published-index.html
+          curl --fail --location --retry 4 --retry-all-errors --retry-delay 5 "${SITE_URL%/}/main.dart.js" -o /dev/null
+          test -s /tmp/published-index.html

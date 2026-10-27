@@ -6,7 +6,7 @@
 
 `.github/workflows/pages.yml` 在 main push 或手動執行時：鎖定依賴 → analyze/test → release Web → Pages artifact → deploy-pages。deploy job 只有 pages:write 與 id-token:write；build job 保持 contents:read。
 
-web/CNAME 是此專案的自訂網域來源。存在時 build 使用 base-href `/`；移除它改用 GitHub 專案網址時，workflow 自動使用 `/cloth/`。`tool/prepare_pages.py` 驗證域名並產生部署目錄 CNAME / .nojekyll；離線 cache 依 registration.scope 隔離，避免同一 github.io origin 下不同專案清理彼此的 cache。
+web/CNAME 記錄預定自訂網域。真正的 build base-href 由 actions/configure-pages 讀取 GitHub 當下已啟用的 Pages 網址決定：自訂網域使用 `/`，預設專案網址使用 `/cloth/`。因此尚未完成自訂網域設定時，GitHub 提供的網址仍能正確載入。變更 Custom domain 後需重新執行 workflow。`tool/prepare_pages.py` 驗證域名並產生部署目錄 CNAME / .nojekyll；離線 cache 依 registration.scope 隔離，避免同一 github.io origin 下不同專案清理彼此的 cache。
 
 **Actions 部署時，CNAME 檔不會代替 GitHub 儲存庫的 Custom domain 設定。** 下列 GitHub 設定與 DNS 都必須完成。
 
