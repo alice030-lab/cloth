@@ -295,6 +295,8 @@ void main() {
       await first.initialize();
       first.theme();
       first.doc.layers.last.x = .72;
+      first.doc.layers.first.scale *= 1.2;
+      first.doc.layers.first.widthScale = 1.35;
       await first.saveOutfit();
       final json = first.doc.toJson();
       first.dispose();

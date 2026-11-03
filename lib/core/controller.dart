@@ -51,8 +51,13 @@ class EditorController extends ChangeNotifier {
       final j = await repo.draft();
       if (j != null) {
         doc = CanvasDocument.fromJson(j);
-        for (final layer in doc.layers.where((l) => l.snappedTo != null)) {
-          snap(layer);
+        // Only migrate documents from before avatar registration was stored.
+        // Current documents must keep the exact scale and width the user saved.
+        final profile = j['bodyParams'];
+        if (profile is Map && !profile.containsKey('appearance')) {
+          for (final layer in doc.layers.where((l) => l.snappedTo != null)) {
+            snap(layer);
+          }
         }
       }
     } catch (_) {
@@ -290,7 +295,11 @@ class EditorController extends ChangeNotifier {
         (l.y - target.dy) * size.height,
       ).distance;
       if (d <= 24) {
-        snap(l);
+        // Reattach position without undoing the user's pinch or width edit.
+        // Explicit "貼回錨點" and body updates still recalculate default sizing.
+        l.x = target.dx;
+        l.y = target.dy;
+        l.snappedTo = a;
       }
     }
     changed();

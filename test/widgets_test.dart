@@ -196,6 +196,44 @@ void main() {
     await tester.pumpAndSettle();
     await drain(tester, editor.flush());
   });
+  testWidgets('pinching an attached shirt keeps its size after snapping', (
+    tester,
+  ) async {
+    addTearDown(() => cleanup(tester));
+    editor.add(editor.item('tee_white'));
+    final original = editor.doc.layers.single.copy();
+    await tester.pumpWidget(OutfitApp(editor: editor));
+    await tester.pumpAndSettle();
+    final target = find.byWidgetPredicate(
+      (w) => w is GestureLayer && w.layer.itemId == 'tee_white',
+    );
+    final center = tester.getCenter(target);
+    final first = await tester.startGesture(
+      center - const Offset(14, 0),
+      pointer: 1,
+    );
+    final second = await tester.startGesture(
+      center + const Offset(14, 0),
+      pointer: 2,
+    );
+    await first.moveTo(center - const Offset(30, 0));
+    await second.moveTo(center + const Offset(30, 0));
+    await tester.pump();
+    await first.moveTo(center - const Offset(42, 0));
+    await second.moveTo(center + const Offset(42, 0));
+    await tester.pump();
+    expect(editor.doc.layers.single.scale, greaterThan(original.scale));
+    await first.up();
+    await second.up();
+    await tester.pumpAndSettle();
+    final resized = editor.doc.layers.single;
+    expect(resized.scale, greaterThan(original.scale));
+    expect(resized.snappedTo, 'shoulderCenter');
+    expect(Offset(resized.x, resized.y), editor.anchor('shoulderCenter'));
+    editor.undo();
+    expect(editor.doc.layers.single.toJson(), original.toJson());
+    await drain(tester, editor.flush());
+  });
   testWidgets('toolbar long press drop creates a free layer on the canvas', (
     tester,
   ) async {

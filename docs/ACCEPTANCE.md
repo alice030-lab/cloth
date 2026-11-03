@@ -13,7 +13,7 @@
 | 命令／檢查 | 結果 |
 |---|---|
 | flutter --suppress-analytics analyze | 通過，No issues found |
-| flutter --suppress-analytics test --reporter expanded | 41 項通過：24 模型／持久化、13 編輯器 widget、4 修圖介面 |
+| flutter --suppress-analytics test --reporter expanded | 42 項通過：24 模型／持久化、14 編輯器 widget、4 修圖介面 |
 | flutter --suppress-analytics build web --release --no-web-resources-cdn | 通過；JavaScript release 與 Wasm dry run 成功，未做 Wasm runtime 驗收 |
 | python3 tool/generate_offline_worker.py | 成功，46 個同來源資源 |
 | python3 -m unittest discover -s tool -p test_tooling.py -v | 3 個輔助腳本測試通過 |
@@ -78,3 +78,5 @@
 追加結果：browser_acceptance.mjs 已通過三種外觀、作品改名／複製另存／刪除取消／確認刪除／重開原作，以及清除資料後重新啟動與空作品清單。新增 12-avatar-*.png、13-project-copy.png、14-cleared-projects.png 實際截圖。browser_smoke.mjs 的跨來源請求與資源載入檢查均通過。
 
 41 項測試新增自訂圖片由紅切換為藍的實際像素檢查，確保替換時不讀取已釋放的舊圖片。文字輸入與操作以 Flutter 語意狀態為準，儲存期間的停用按鈕需等到重新啟用，不能以送出鍵盤事件視為完成操作。
+
+縮放追加驗收：使用雙指在吸附錨點附近連續放大，放手後保留尺寸、仍貼齊錨點且一次 undo 還原。實際檔案資料庫關閉／重開亦驗證非預設縮放與寬度完全保留；只針對沒有 appearance 欄位的舊文件做初始座標遷移，不在每次啟動重設尺寸。本輪共 42 項 Flutter 測試（24 模型／資料、14 編輯器、4 修圖）。
