@@ -1,6 +1,7 @@
 import 'dart:ui' as ui;
 import 'dart:typed_data';
 import 'package:flutter/material.dart';
+import 'package:flutter/rendering.dart';
 import 'package:image/image.dart' as img;
 import 'package:flutter_test/flutter_test.dart';
 import 'package:sembast/sembast_memory.dart';
@@ -312,6 +313,51 @@ void main() {
         ))!.buffer.asUint8List();
         expect(pixels[0], 0);
         expect(pixels[2], 200);
+      });
+      final captureKey = GlobalKey();
+      await tester.pumpWidget(
+        MaterialApp(
+          home: Center(
+            child: RepaintBoundary(
+              key: captureKey,
+              child: SizedBox(
+                width: 200,
+                height: 100,
+                child: ItemArt(
+                  editor: editor,
+                  item: Item(
+                    id: 'custom-blue',
+                    name: 'blue',
+                    kind: Kind.top,
+                    assetId: 'blue',
+                    shape: 'image',
+                  ),
+                ),
+              ),
+            ),
+          ),
+        ),
+      );
+      await drain(
+        tester,
+        waitForCanvasAssets(tester.element(find.byType(AssetImageView))),
+      );
+      await tester.pump();
+      await tester.runAsync(() async {
+        final boundary =
+            captureKey.currentContext!.findRenderObject()
+                as RenderRepaintBoundary;
+        final image = await boundary.toImage();
+        final pixels = (await image.toByteData(
+          format: ui.ImageByteFormat.rawRgba,
+        ))!.buffer.asUint8List();
+        expect(
+          pixels[2],
+          200,
+          reason: 'Width adjustment must fill the imported layer',
+        );
+        expect(pixels[3], 255);
+        image.dispose();
       });
       await tester.pumpWidget(const SizedBox());
       expect(tester.takeException(), isNull);

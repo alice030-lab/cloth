@@ -167,7 +167,12 @@ class ItemArt extends StatelessWidget {
                 painter: ItemPainter(item, activated: activated),
                 size: Size.infinite,
               ))
-      : AssetImageView(editor: editor, id: item.assetId!, alphaHitTest: true);
+      : AssetImageView(
+          editor: editor,
+          id: item.assetId!,
+          fit: BoxFit.fill,
+          alphaHitTest: true,
+        );
 }
 
 class CanvasView extends StatelessWidget {
