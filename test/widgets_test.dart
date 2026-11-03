@@ -1,6 +1,7 @@
 import 'dart:ui' as ui;
 import 'dart:typed_data';
 import 'package:flutter/material.dart';
+import 'package:image/image.dart' as img;
 import 'package:flutter_test/flutter_test.dart';
 import 'package:sembast/sembast_memory.dart';
 import 'package:outfit_canvas/core/models.dart';
@@ -261,6 +262,61 @@ void main() {
     await tester.tapAt(tester.getTopLeft(target) + const Offset(5, 5));
     expect(selected, 'hair');
   });
+  testWidgets(
+    'changing stored image releases the old handle and renders the new one',
+    (tester) async {
+      addTearDown(() => cleanup(tester));
+      Uint8List png(int r, int b) => Uint8List.fromList(
+        img.encodePng(
+          img.fill(
+            img.Image(width: 8, height: 8, numChannels: 4),
+            color: img.ColorRgba8(r, 0, b, 255),
+          ),
+        ),
+      );
+      await tester.runAsync(() async {
+        await editor.repo.putAsset('red', png(200, 0));
+        await editor.repo.putAsset('blue', png(0, 200));
+      });
+      Widget view(String id) => MaterialApp(
+        home: Center(
+          child: SizedBox(
+            width: 100,
+            height: 100,
+            child: AssetImageView(
+              key: const ValueKey('stored-image'),
+              editor: editor,
+              id: id,
+              alphaHitTest: true,
+            ),
+          ),
+        ),
+      );
+      await tester.pumpWidget(view('red'));
+      await drain(
+        tester,
+        waitForCanvasAssets(tester.element(find.byType(AssetImageView))),
+      );
+      await tester.pump();
+      await tester.pumpWidget(view('blue'));
+      expect(tester.takeException(), isNull);
+      await drain(
+        tester,
+        waitForCanvasAssets(tester.element(find.byType(AssetImageView))),
+      );
+      await tester.pump();
+      await tester.runAsync(() async {
+        final image = tester.widget<RawImage>(find.byType(RawImage)).image!;
+        final pixels = (await image.toByteData(
+          format: ui.ImageByteFormat.rawRgba,
+        ))!.buffer.asUint8List();
+        expect(pixels[0], 0);
+        expect(pixels[2], 200);
+      });
+      await tester.pumpWidget(const SizedBox());
+      expect(tester.takeException(), isNull);
+    },
+  );
   testWidgets('bounded codec keeps tall images within output budget', (
     tester,
   ) async {

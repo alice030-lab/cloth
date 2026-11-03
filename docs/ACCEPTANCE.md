@@ -13,7 +13,7 @@
 | 命令／檢查 | 結果 |
 |---|---|
 | flutter --suppress-analytics analyze | 通過，No issues found |
-| flutter --suppress-analytics test --reporter expanded | 40 項通過：24 模型／持久化、12 編輯器 widget、4 修圖介面 |
+| flutter --suppress-analytics test --reporter expanded | 41 項通過：24 模型／持久化、13 編輯器 widget、4 修圖介面 |
 | flutter --suppress-analytics build web --release --no-web-resources-cdn | 通過；JavaScript release 與 Wasm dry run 成功，未做 Wasm runtime 驗收 |
 | python3 tool/generate_offline_worker.py | 成功，46 個同來源資源 |
 | python3 -m unittest discover -s tool -p test_tooling.py -v | 3 個輔助腳本測試通過 |
@@ -43,13 +43,13 @@
 | A11 | 部分 | 主題套用測試通過、8道具已附；精華／痘痘貼回饋與五階段真人完成率仍待人工驗收 |
 | A12 | 部分 | 5 個寫實場景均已在 Chromium 實際切換；取景及自訂匯入已實作，全部裁切極值矩陣未跑完 |
 | A13 | 通過 | 真實檔案資料庫關閉重開、IndexedDB reload 後恢復、離線重載 |
-| A14 | 通過核心鏈 | Chromium 儲存→reload→作品清單→縮圖重開，widget 重開後可再次新增圖層；刪除／副本 UI 人工矩陣待補 |
+| A14 | 通過核心鏈 | Chromium 儲存→reload→縮圖重開，另實際完成作品改名、複製另存、刪除取消、確認刪除副本、重開原作；widget 重開後可再次新增圖層 |
 | A15 | 部分 | 登場、before/after、完成圖與前後對比卡真實 PNG 下載均通過；原生分享待真機驗收 |
 | A16 | 通過資料層 | 刪除衣櫥單品保留已存作品引用；交易清理只刪 orphan blob，容量壓力測試未做 |
 | A17 | 通過資料層 | 模擬磁碟錯誤，失敗回報與記憶體編輯保留；真實裝置磁碟耗盡未做 |
 | A18 | 通過指定 Web 範圍 | 360×800／390×844／430×932、1.5倍字體 widget 無例外，Web 寬度截圖已產生 |
 | A19 | 通過已執行範圍 | Chromium 離線 reload 後恢復畫布，再實際選檔匯入、加入衣櫥、試穿、儲存、完成圖 PNG 下載，均通過 |
-| A20 | 部分 | 清除交易測試涵蓋文件／blob／體型／偏好；未做完整網路封包稽核與原生資料清除人工測試 |
+| A20 | 部分 | 清除交易測試涵蓋文件／blob／體型／偏好；Chromium 清除後 reload 回到首次引導且作品清單為空；完整匯入／儲存／匯出監測零跨來源請求及零失敗資源。原生資料清除人工測試未做 |
 
 ## 原生與研究限制
 
@@ -74,3 +74,7 @@
 ## 0.3 操作與原生驗收
 
 本輪 40 項 Flutter 測試涵蓋單點擦除／還原的實際介面與 Alpha 輸出、錯誤格式、取消原生處理後忽略晚回應、保養使用狀態與 undo，以及非預設圖層寬度的 JSON roundtrip。另已新增 browser_acceptance.mjs 操作三種外觀及作品管理／清除資料矩陣，結果依部署紀錄補記。browser_smoke.mjs 同時檢查跨來源請求與失敗的同來源資源，避免以限制外連掩蓋缺少的字型檔。
+
+追加結果：browser_acceptance.mjs 已通過三種外觀、作品改名／複製另存／刪除取消／確認刪除／重開原作，以及清除資料後重新啟動與空作品清單。新增 12-avatar-*.png、13-project-copy.png、14-cleared-projects.png 實際截圖。browser_smoke.mjs 的跨來源請求與資源載入檢查均通過。
+
+41 項測試新增自訂圖片由紅切換為藍的實際像素檢查，確保替換時不讀取已釋放的舊圖片。文字輸入與操作以 Flutter 語意狀態為準，儲存期間的停用按鈕需等到重新啟用，不能以送出鍵盤事件視為完成操作。

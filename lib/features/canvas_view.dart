@@ -87,6 +87,7 @@ class _AssetImageViewState extends State<AssetImageView> {
 
   @override
   Widget build(BuildContext context) => FutureBuilder<_LoadedAsset?>(
+    key: ValueKey('${widget.id}:${widget.alphaHitTest}'),
     future: future,
     builder: (context, snapshot) {
       final asset = snapshot.data;

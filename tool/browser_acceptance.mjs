@@ -7,7 +7,7 @@ const context=await browser.newContext({viewport:{width:390,height:844}});
 const page=await context.newPage();const errors=[];page.on('pageerror',e=>errors.push(e.message));
 const button=name=>page.getByRole('button',{name,exact:true});
 const named=name=>page.getByText(name,{exact:true}).or(page.getByLabel(name,{exact:true})).first();
-async function press(name){await button(name).press('Enter');}
+async function press(name){const target=button(name);await target.waitFor();for(let i=0;i<150&&!await target.isEnabled();i++)await page.waitForTimeout(20);assert.equal(await target.isEnabled(),true,`${name} must become enabled`);await target.press('Enter');}
 async function accessible(){await page.locator('flt-semantics-placeholder, flt-semantics').first().waitFor({state:'attached'});const p=page.locator('flt-semantics-placeholder');if(await p.count())await p.evaluate(e=>e.click());}
 async function count(locator, expected){for(let i=0;i<200&&await locator.count()!==expected;i++)await page.waitForTimeout(50);assert.equal(await locator.count(),expected);}
 async function menu(action){await button('作品選單').first().press('Enter');await named(action).click();}
