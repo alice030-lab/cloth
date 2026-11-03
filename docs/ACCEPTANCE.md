@@ -2,7 +2,11 @@
 
 已解除官方 SDK 下載阻擋。Flutter **3.47.8**、Dart **3.13.7** 已安裝，依賴已解析並保存 pubspec.lock。此報告取代先前「尚未下載 SDK」版本。
 
-目前結論：**Web 核心操作鏈已驗證，全平台 P0 尚未完成。** 不將原生未測項目、主觀美術驗收或使用者研究標為通過。已部署到 https://alice030-lab.github.io/cloth/ ，GitHub Actions run 40468669688 的 build、deploy 與公開首頁／main.dart.js 的 HTTPS 檢查均通過。相同 /cloth/ 產物在本機 Chromium 完整流程與離線測試通過。執行環境對 github.io 的直接外連受代理限制，未宣稱在此瀏覽器對外站做完整互動驗收。其後自訂網域 app.uslinkyou.com 已綁定，run 40470732019 以根路徑部署並通過 HTTP 首頁／程式檔檢查；HTTPS 憑證尚在準備，DNS health 檢查受整合權限限制，尚未驗證。
+目前結論：**Web 核心操作鏈已驗證，全平台 P0 尚未完成。** 不將原生未測項目、主觀美術驗收或使用者研究標為通過。
+
+2026-11-03 寫實素材更新提交 `6ab5b7b` 已由 [GitHub Actions run 41593727792](https://github.com/alice030-lab/cloth/actions/runs/41593727792) 完成 build、deploy 與公開首頁／main.dart.js 檢查，整體結論 success。公開入口為 https://app.uslinkyou.com/ 。本機 Chromium 對相同根路徑 release 建置完成下述互動驗收；此雲端瀏覽器對自訂網域的連線受代理限制，沒有將部署端的連線檢查冒稱為外站完整互動實測。
+
+先前初次部署紀錄為 40468669688（預設 /cloth/）與 40470732019（自訂網域根路徑）。本次透過 GitHub 公開 Actions 頁面確認部署結果；沒有額外宣稱 DNS health API 或憑證狀態已重新查驗。
 
 ## 實際結果
 
@@ -11,7 +15,7 @@
 | flutter --suppress-analytics analyze | 通過，No issues found |
 | flutter --suppress-analytics test --reporter expanded | 35 項通過：23 模型／持久化、12 widget 實例 |
 | flutter --suppress-analytics build web --release --no-web-resources-cdn | 通過；JavaScript release 與 Wasm dry run 成功，未做 Wasm runtime 驗收 |
-| python3 tool/generate_offline_worker.py | 成功，37 個同來源資源 |
+| python3 tool/generate_offline_worker.py | 成功，45 個同來源資源 |
 | python3 -m unittest discover -s tool -p test_tooling.py -v | 3 個輔助腳本測試通過 |
 | tool/browser_smoke.mjs + Chromium | 通過：試玩→套主題→體型面板→選圖→修圖匯入→立即試穿→登場→儲存→下載 PNG→reload→作品集→縮圖重開→離線 reload；360/390/430 寬截圖 |
 | tool/bootstrap_platforms.sh | 實際執行成功，產生 iOS／Android runner 並接入 adapter；不代表原生 build 通過 |

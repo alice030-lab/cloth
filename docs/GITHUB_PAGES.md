@@ -4,6 +4,9 @@
 
 初次設定時確認 Pages Custom domain 已是 app.uslinkyou.com，根路徑部署成功。部署紀錄 https://github.com/alice030-lab/cloth/actions/runs/40470732019 的公開首頁與 JavaScript 檢查通過（目前 HTTP）。使用者在 Vercel 顯示的 app CNAME 指向 alice030-lab.github.io. 正確；GitHub DNS health API 受整合權限限制，未宣稱其 DNS 檢查已通過。初次查詢時憑證 state=new、https_enforced=false；後續狀態應以 GitHub Pages 設定頁為準。
 
+
+2026-11-03 新版 `6ab5b7b` 的 [run 41593727792](https://github.com/alice030-lab/cloth/actions/runs/41593727792) 已成功，包含公開首頁與程式檔檢查。此結果由 GitHub 公開 Actions 頁面確認；雲端直接連線自訂網域與 API 的代理限制仍存在，未另行宣稱完整外站瀏覽器互動已測。
+
 ## 已加入的程式設定
 
 `.github/workflows/pages.yml` 在 main push 或手動執行時：鎖定依賴 → analyze/test → release Web → Pages artifact → deploy-pages。deploy job 只有 pages:write 與 id-token:write；build job 保持 contents:read。
