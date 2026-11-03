@@ -4,7 +4,13 @@
 
 目前結論：**Web 核心操作鏈已驗證，全平台 P0 尚未完成。** 不將原生未測項目、主觀美術驗收或使用者研究標為通過。
 
-2026-11-03 寫實素材更新提交 `6ab5b7b` 已由 [GitHub Actions run 41593727792](https://github.com/alice030-lab/cloth/actions/runs/41593727792) 完成 build、deploy 與公開首頁／main.dart.js 檢查，整體結論 success。公開入口為 https://app.uslinkyou.com/ 。本機 Chromium 對相同根路徑 release 建置完成下述互動驗收；此雲端瀏覽器對自訂網域的連線受代理限制，沒有將部署端的連線檢查冒稱為外站完整互動實測。
+2026-11-03 最新 0.3 版提交 `27c2523`：
+
+- [Pages run 41602075492](https://github.com/alice030-lab/cloth/actions/runs/41602075492) 成功：分析、42 項 Flutter 測試、7 項 Python 測試、release build、部署與公開首頁／main.dart.js 檢查。
+- [Native run 41602075472](https://github.com/alice030-lab/cloth/actions/runs/41602075472) 成功：Android debug APK 與 iOS 模擬器 App 均編譯並上傳 Artifact。
+- 本機相同根路徑 release 成品的 browser_smoke.mjs 通過完整操作／離線流程、零跨來源請求與零失敗資源；browser_acceptance.mjs 通過三種外觀、作品改名／副本／刪除取消／重開與資料清除矩陣。
+
+公開入口 https://app.uslinkyou.com/ 。此雲端瀏覽器對自訂網域仍有代理限制，沒有將部署端連線檢查冒稱為外站完整互動實測。
 
 先前初次部署紀錄為 40468669688（預設 /cloth/）與 40470732019（自訂網域根路徑）。本次透過 GitHub 公開 Actions 頁面確認部署結果；沒有額外宣稱 DNS health API 或憑證狀態已重新查驗。
 
@@ -80,3 +86,11 @@
 41 項測試新增自訂圖片由紅切換為藍的實際像素檢查，確保替換時不讀取已釋放的舊圖片。文字輸入與操作以 Flutter 語意狀態為準，儲存期間的停用按鈕需等到重新啟用，不能以送出鍵盤事件視為完成操作。
 
 縮放追加驗收：使用雙指在吸附錨點附近連續放大，放手後保留尺寸、仍貼齊錨點且一次 undo 還原。實際檔案資料庫關閉／重開亦驗證非預設縮放與寬度完全保留；只針對沒有 appearance 欄位的舊文件做初始座標遷移，不在每次啟動重設尺寸。本輪共 42 項 Flutter 測試（24 模型／資料、14 編輯器、4 修圖）。
+
+## 尚未完成／需外部驗證
+
+- 真機上的 Vision／ML Kit 去背品質、相簿／檔案權限拒絕、原生分享與資料清除；Android 單一 instance 點選仍回報不支援並提供手動修圖。
+- 70 張真實截圖與自拍、10 位目標使用者及正式美術驗收，沒有用合成素材或軟體測試代替。
+- L2 自拍替身、姿態／手動錨點校正仍未實作，屬後續範圍；目前三種寫實人物為示範素材，不是使用者本人。
+
+因此原生「編譯成功」不等於全平台 P0 驗收完成，也不宣稱已產生能直接安裝到 iPhone 的簽署版本。

@@ -42,7 +42,7 @@ CHROME_PATH=/usr/bin/chromium node tool/browser_smoke.mjs
 flutter --suppress-analytics run -d <裝置ID>
 ```
 
-已實際產生 ios/、android/ runner 並接好 native/ adapter。bootstrap 會冪等更新介面設定，保留已有 runner。iOS 需 macOS/Xcode；Android 需 Android SDK 與支援的裝置。已新增 [原生建置 CI](https://github.com/alice030-lab/cloth/actions/workflows/native.yml)，首輪 run 41594945631 的 Android debug APK 與 iOS 模擬器 App 均編譯成功，產物可在 Actions 的 Artifacts 下載。這不代表真機分享或 ML 品質已驗證；iOS 模擬器 App 不能直接安裝到 iPhone。此 Linux 環境另已安裝 Android SDK，但本機 JRE 缺少 javac，未把本機 APK 建置失敗寫成成功。
+已實際產生 ios/、android/ runner 並接好 native/ adapter。bootstrap 會冪等更新介面設定，保留已有 runner。iOS 需 macOS/Xcode；Android 需 Android SDK 與支援的裝置。已新增 [原生建置 CI](https://github.com/alice030-lab/cloth/actions/workflows/native.yml)，最新 [run 41602075472](https://github.com/alice030-lab/cloth/actions/runs/41602075472) 的 Android debug APK 與 iOS 模擬器 App 均編譯成功，產物可在 Actions 的 Artifacts 下載。這不代表真機分享或 ML 品質已驗證；iOS 模擬器 App 不能直接安裝到 iPhone。此 Linux 環境另已安裝 Android SDK，但本機 JRE 缺少 javac，未把本機 APK 建置失敗寫成成功。
 
 | 平台 | 本機資料與匯入 | 自動去背 | 匯出 |
 |---|---|---|---|

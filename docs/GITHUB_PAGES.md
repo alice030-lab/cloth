@@ -44,3 +44,7 @@ web/CNAME 記錄預定自訂網域。真正的 build base-href 由 actions/confi
 - 使用正式網域檢查 HTTPS、圖片匯入、作品儲存重開、PNG 匯出及離線重載。
 - 作品依網站 origin 儲存在瀏覽器，github.io 測試網址與自訂網域的本機作品不會自動同步。
 - 後續推送 main 自動更新；未授權時不要強制 push 或覆蓋既有遠端提交。
+
+## 0.3 最新交付
+
+提交 27c2523 的 Pages run 41602075492 與原生 run 41602075472 均成功。公開網址維持 https://app.uslinkyou.com/ ，詳見 ACCEPTANCE.md 的測試與未完成項目。
