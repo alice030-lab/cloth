@@ -18,7 +18,7 @@ class FashionImages {
         final codec = await ui.instantiateImageCodec(data.buffer.asUint8List());
         try {
           final image = (await codec.getNextFrame()).image;
-          if (name != 'avatar' && name != 'scenes') {
+          if (!name.startsWith('avatar') && name != 'scenes') {
             final raw = (await image.toByteData(
               format: ui.ImageByteFormat.rawRgba,
             ))!.buffer.asUint8List();
@@ -36,8 +36,12 @@ class FashionImages {
       });
 }
 
-bool photographic(BodyProfile body) =>
-    body.appearance == 'photo' && body.gender == 'feminine';
+bool photographic(BodyProfile body) => body.appearance == 'photo';
+String avatarSheet(BodyProfile body) =>
+    body.gender == 'feminine' ? 'avatar' : 'avatars-inclusive';
+Rect avatarRegion(BodyProfile body) => body.gender == 'feminine'
+    ? const Rect.fromLTWH(0, 0, 1, 1)
+    : Rect.fromLTWH(body.gender == 'masculine' ? 0 : .5, 0, .5, 1);
 
 Widget fashionLoading(bool failed) => Center(
   child: Icon(
@@ -56,8 +60,13 @@ class FashionAvatar extends StatelessWidget {
     if (!photographic(body)) {
       return CustomPaint(painter: AvatarPainter(body));
     }
+    final ready = FashionImages.ready[avatarSheet(body)];
+    if (ready != null) {
+      return CustomPaint(painter: FashionAvatarPainter(body, ready));
+    }
     return FutureBuilder<ui.Image>(
-      future: FashionImages.load('avatar'),
+      key: ValueKey(avatarSheet(body)),
+      future: FashionImages.load(avatarSheet(body)),
       builder: (context, snapshot) => snapshot.hasData
           ? CustomPaint(painter: FashionAvatarPainter(body, snapshot.data!))
           : fashionLoading(snapshot.hasError),
@@ -83,7 +92,13 @@ class FashionAvatarPainter extends CustomPainter {
             point.dy * size.height,
           ),
         );
-        texture.add(Offset(x * image.width, y * image.height));
+        final region = avatarRegion(body);
+        texture.add(
+          Offset(
+            (region.left + x * region.width) * image.width,
+            (region.top + y * region.height) * image.height,
+          ),
+        );
         if (row < rows && col < columns) {
           final a = row * (columns + 1) + col, b = a + columns + 1;
           indices.addAll([a, b, a + 1, a + 1, b, b + 1]);
@@ -206,15 +221,17 @@ class SpriteMask {
 class SpriteHitRegion extends SingleChildRenderObjectWidget {
   final SpriteMask? mask;
   final Rect region;
+  final Rect? destination;
   const SpriteHitRegion({
     super.key,
     required this.mask,
     required this.region,
+    this.destination,
     required super.child,
   });
   @override
   RenderObject createRenderObject(BuildContext context) =>
-      SpriteHitBox(mask, region);
+      SpriteHitBox(mask, region, destination);
   @override
   void updateRenderObject(
     BuildContext context,
@@ -222,20 +239,24 @@ class SpriteHitRegion extends SingleChildRenderObjectWidget {
   ) {
     renderObject
       ..mask = mask
-      ..region = region;
+      ..region = region
+      ..destination = destination;
   }
 }
 
 class SpriteHitBox extends RenderProxyBox {
   SpriteMask? mask;
   Rect region;
-  SpriteHitBox(this.mask, this.region);
+  Rect? destination;
+  SpriteHitBox(this.mask, this.region, this.destination);
   @override
   bool hitTest(BoxHitTestResult result, {required Offset position}) {
     if (!size.contains(position)) return false;
+    final target = destination ?? (Offset.zero & size);
+    if (target.isEmpty || !target.contains(position)) return false;
     final point = Offset(
-      region.left + position.dx / size.width * region.width,
-      region.top + position.dy / size.height * region.height,
+      region.left + (position.dx - target.left) / target.width * region.width,
+      region.top + (position.dy - target.top) / target.height * region.height,
     );
     if (mask != null && !mask!.opaque(point)) return false;
     return super.hitTest(result, position: position);

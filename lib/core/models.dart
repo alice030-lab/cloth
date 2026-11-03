@@ -158,7 +158,9 @@ class FigureGeometry {
     double band(double center, double radius) =>
         math.exp(-math.pow((y - center) / radius, 2));
     final dx = x - .5;
-    final torso = math.exp(-math.pow(dx / .17, 6));
+    final torso = math.exp(
+      -math.pow(dx / (body.gender == 'masculine' ? .22 : .17), 6),
+    );
     final change =
         (body.bust - 86) * .0021 * band(.29, .055) +
         (body.waist - 68) * .0022 * band(.415, .045) +
@@ -173,15 +175,22 @@ class FigureGeometry {
 
   Offset normalized(String name) {
     final a = anchors[name]!;
-    if (body.appearance == 'photo' && body.gender == 'feminine') {
+    if (body.appearance == 'photo') {
       final point = switch (name) {
         'headTop' => const Offset(.5, .03),
         'faceCenter' => const Offset(.5, .105),
         'chin' => const Offset(.5, .163),
         'neck' => const Offset(.5, .19),
-        'shoulderLeft' => const Offset(.33, .205),
-        'shoulderRight' => const Offset(.67, .205),
-        'shoulderCenter' => const Offset(.5, .205),
+        'shoulderLeft' => Offset(body.gender == 'masculine' ? .29 : .33, .205),
+        'shoulderRight' => Offset(body.gender == 'masculine' ? .71 : .67, .205),
+        'shoulderCenter' => Offset(
+          .5,
+          body.gender == 'masculine'
+              ? .17
+              : body.gender == 'neutral'
+              ? .19
+              : .205,
+        ),
         'chestCenter' => const Offset(.5, .29),
         'waistCenter' => const Offset(.5, .415),
         'hipCenter' => const Offset(.5, .49),
@@ -280,7 +289,7 @@ class Item {
 class CanvasLayer {
   final String id, itemId;
   final Kind kind;
-  double x, y, scale, rotation;
+  double x, y, scale, rotation, widthScale;
   String? snappedTo;
   int order;
   bool activated;
@@ -291,6 +300,7 @@ class CanvasLayer {
     this.x = .5,
     this.y = .4,
     this.scale = .25,
+    this.widthScale = 1,
     this.rotation = 0,
     this.snappedTo,
     this.order = 0,
@@ -305,6 +315,7 @@ class CanvasLayer {
     'x': x,
     'y': y,
     'scale': scale,
+    'width_scale': widthScale,
     'rotation': rotation,
     'snapped_to': snappedTo,
     'order': order,
@@ -317,6 +328,7 @@ class CanvasLayer {
     x: number(j['x'], .5),
     y: number(j['y'], .4),
     scale: number(j['scale'], .25).clamp(.03, 2).toDouble(),
+    widthScale: number(j['width_scale'], 1).clamp(.5, 2.5).toDouble(),
     rotation: number(j['rotation']),
     snappedTo: j['snapped_to'],
     order: j['order'] ?? 0,

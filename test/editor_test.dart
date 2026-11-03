@@ -27,6 +27,22 @@ void main() {
     e.dispose();
     await e.repo.db.close();
   });
+  test('care actions recalculate progress and undo their used state', () {
+    e.add(e.item('serum'));
+    final layer = e.doc.layers.single;
+    e.useCare(layer);
+    expect(e.stageDone(1), isTrue);
+    expect(e.careKind, 'serum');
+    e.undo();
+    expect(e.stageDone(1), isFalse);
+    e.useCare(e.doc.layers.single);
+    e.remove(e.doc.layers.single.id);
+    expect(e.stageDone(1), isFalse);
+    expect(
+      builtinItems().where((i) => i.kind == Kind.prop).length,
+      greaterThanOrEqualTo(8),
+    );
+  });
   test('body values reject invalid measurements without mutating', () {
     final b = BodyProfile();
     expect(() => b.set('waist', double.nan), throwsArgumentError);
@@ -177,6 +193,7 @@ void main() {
     e.doc.cropX = .4;
     e.doc.cropY = -.3;
     e.doc.layers.first.rotation = .8;
+    e.doc.layers.first.widthScale = 1.35;
     final copy = CanvasDocument.fromJson(e.doc.toJson());
     expect(copy.toJson(), e.doc.toJson());
   });

@@ -3,6 +3,8 @@ import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import '../core/controller.dart';
 import '../core/models.dart';
+import '../core/images.dart';
+import 'dart:ui' as ui;
 import '../painting/art.dart';
 import '../painting/fashion.dart';
 
@@ -11,57 +13,139 @@ class AssetImageView extends StatefulWidget {
   final String id;
   final BoxFit fit;
   final Alignment alignment;
+  final bool alphaHitTest;
   const AssetImageView({
     super.key,
     required this.editor,
     required this.id,
     this.fit = BoxFit.contain,
     this.alignment = Alignment.center,
+    this.alphaHitTest = false,
   });
   @override
   State<AssetImageView> createState() => _AssetImageViewState();
 }
 
+class _LoadedAsset {
+  final ui.Image image;
+  final SpriteMask? mask;
+  _LoadedAsset(this.image, this.mask);
+}
+
 class _AssetImageViewState extends State<AssetImageView> {
-  late Future<Uint8List?> future;
+  late Future<_LoadedAsset?> future;
+  _LoadedAsset? owned;
+  int generation = 0;
   @override
   void initState() {
     super.initState();
-    future = widget.editor.repo.asset(widget.id);
+    reload();
+  }
+
+  void reload() {
+    final token = ++generation;
+    owned?.image.dispose();
+    owned = null;
+    final id = widget.id, alpha = widget.alphaHitTest;
+    future = () async {
+      final bytes = await widget.editor.repo.asset(id);
+      if (bytes == null) return null;
+      final image = await decodeBounded(bytes);
+      SpriteMask? mask;
+      if (alpha) {
+        final data = (await image.toByteData(
+          format: ui.ImageByteFormat.rawRgba,
+        ))!.buffer.asUint8List();
+        final values = Uint8List(image.width * image.height);
+        for (var i = 0; i < values.length; i++) {
+          values[i] = data[i * 4 + 3];
+        }
+        mask = SpriteMask(image.width, image.height, values);
+      }
+      if (!mounted || token != generation) {
+        image.dispose();
+        return null;
+      }
+      return owned = _LoadedAsset(image, mask);
+    }();
   }
 
   @override
   void didUpdateWidget(AssetImageView old) {
     super.didUpdateWidget(old);
-    if (old.id != widget.id) {
-      future = widget.editor.repo.asset(widget.id);
+    if (old.id != widget.id || old.alphaHitTest != widget.alphaHitTest) {
+      reload();
     }
   }
 
   @override
-  Widget build(BuildContext context) => FutureBuilder<Uint8List?>(
+  void dispose() {
+    generation++;
+    owned?.image.dispose();
+    super.dispose();
+  }
+
+  @override
+  Widget build(BuildContext context) => FutureBuilder<_LoadedAsset?>(
     future: future,
-    builder: (context, s) {
-      if (s.hasData) {
-        return Image.memory(
-          s.data!,
-          fit: widget.fit,
-          alignment: widget.alignment,
-          gaplessPlayback: true,
-          errorBuilder: (c, e, t) =>
-              const Center(child: Icon(Icons.broken_image_outlined)),
+    builder: (context, snapshot) {
+      final asset = snapshot.data;
+      if (asset == null) {
+        return fashionLoading(
+          snapshot.hasError || snapshot.connectionState == ConnectionState.done,
         );
       }
-      return Center(
-        child: Icon(
-          s.connectionState == ConnectionState.waiting
-              ? Icons.hourglass_empty
-              : Icons.broken_image_outlined,
-          color: Colors.brown,
-        ),
+      final image = RawImage(
+        image: asset.image,
+        fit: widget.fit,
+        alignment: widget.alignment,
+      );
+      if (!widget.alphaHitTest) return image;
+      return LayoutBuilder(
+        builder: (context, box) {
+          final source = Size(
+            asset.image.width.toDouble(),
+            asset.image.height.toDouble(),
+          );
+          final fitted = applyBoxFit(widget.fit, source, box.biggest);
+          final destination = widget.alignment.inscribe(
+            fitted.destination,
+            Offset.zero & box.biggest,
+          );
+          final crop = widget.alignment.inscribe(
+            fitted.source,
+            Offset.zero & source,
+          );
+          return SpriteHitRegion(
+            mask: asset.mask,
+            region: Rect.fromLTRB(
+              crop.left / source.width,
+              crop.top / source.height,
+              crop.right / source.width,
+              crop.bottom / source.height,
+            ),
+            destination: destination,
+            child: image,
+          );
+        },
       );
     },
   );
+}
+
+/// Await every actual decoded asset in a capture subtree before rasterizing.
+Future<void> waitForCanvasAssets(BuildContext context) async {
+  final pending = <Future<_LoadedAsset?>>[];
+  void visit(Element element) {
+    if (element is StatefulElement && element.state is _AssetImageViewState) {
+      pending.add((element.state as _AssetImageViewState).future);
+    }
+    element.visitChildren(visit);
+  }
+
+  visit(context as Element);
+  final results = await Future.wait(pending);
+  if (results.any((asset) => asset == null)) throw StateError('圖片尚未就緒，請重試。');
 }
 
 class ItemArt extends StatelessWidget {
@@ -82,7 +166,7 @@ class ItemArt extends StatelessWidget {
                 painter: ItemPainter(item, activated: activated),
                 size: Size.infinite,
               ))
-      : AssetImageView(editor: editor, id: item.assetId!);
+      : AssetImageView(editor: editor, id: item.assetId!, alphaHitTest: true);
 }
 
 class CanvasView extends StatelessWidget {
@@ -136,6 +220,14 @@ class CanvasView extends StatelessWidget {
                   fit: StackFit.expand,
                   children: [
                     RepaintBoundary(key: captureKey, child: content),
+                    if (interactive)
+                      IgnorePointer(
+                        child: CareFeedback(
+                          event: editor.careEvent,
+                          kind: editor.careKind,
+                          face: editor.anchor('faceCenter'),
+                        ),
+                      ),
                     if (interactive && editor.selection != null)
                       _selection(editor.selection!, size),
                     if (interactive)
@@ -217,7 +309,7 @@ class CanvasView extends StatelessWidget {
   Rect rect(CanvasLayer l, Size s) {
     final it = editor.item(l.itemId);
     final h = l.scale * s.height * .94;
-    final w = h * it.naturalAspect;
+    final w = h * it.naturalAspect * l.widthScale;
     final centerAligned = l.kind.anchor == null;
     return Rect.fromLTWH(
       l.x * s.width - w / 2,
@@ -361,7 +453,7 @@ class _GestureLayerState extends State<GestureLayer>
     final e = widget.editor, l = widget.layer;
     final it = e.item(l.itemId);
     if (it.id == 'patch' || it.id == 'serum') {
-      e.change(() => l.activated = !l.activated);
+      e.useCare(l);
       HapticFeedback.lightImpact();
       if (!MediaQuery.of(context).disableAnimations) {
         pulse.forward(from: 0);
@@ -371,10 +463,13 @@ class _GestureLayerState extends State<GestureLayer>
 
   @override
   Widget build(BuildContext context) => Semantics(
-    label: widget.editor.item(widget.layer.itemId).name,
+    label:
+        '${widget.editor.item(widget.layer.itemId).name}${widget.layer.activated ? '，已使用' : ''}',
     button: true,
     child: GestureDetector(
-      behavior: fashionSprites.containsKey(widget.layer.itemId)
+      behavior:
+          (fashionSprites.containsKey(widget.layer.itemId) ||
+              widget.editor.item(widget.layer.itemId).assetId != null)
           ? HitTestBehavior.deferToChild
           : HitTestBehavior.translucent,
       onTap: () {
@@ -428,4 +523,121 @@ class _GestureLayerState extends State<GestureLayer>
       ),
     ),
   );
+}
+
+/// Transient care feedback is outside the capture boundary and never baked
+/// into a saved outfit. Reduced-motion users get the persistent used state.
+class CareFeedback extends StatefulWidget {
+  final int event;
+  final String? kind;
+  final Offset face;
+  const CareFeedback({
+    super.key,
+    required this.event,
+    required this.kind,
+    required this.face,
+  });
+  @override
+  State<CareFeedback> createState() => _CareFeedbackState();
+}
+
+class _CareFeedbackState extends State<CareFeedback>
+    with SingleTickerProviderStateMixin {
+  late final controller = AnimationController(
+    vsync: this,
+    duration: const Duration(milliseconds: 1000),
+  );
+  @override
+  void didUpdateWidget(CareFeedback old) {
+    super.didUpdateWidget(old);
+    if (old.event != widget.event && !MediaQuery.disableAnimationsOf(context)) {
+      controller.forward(from: 0);
+    }
+  }
+
+  @override
+  void dispose() {
+    controller.dispose();
+    super.dispose();
+  }
+
+  @override
+  Widget build(BuildContext context) => AnimatedBuilder(
+    animation: controller,
+    builder: (context, child) => CustomPaint(
+      painter: CareFeedbackPainter(controller.value, widget.face, widget.kind),
+      size: Size.infinite,
+    ),
+  );
+}
+
+class CareFeedbackPainter extends CustomPainter {
+  final double progress;
+  final Offset face;
+  final String? kind;
+  CareFeedbackPainter(this.progress, this.face, this.kind);
+  @override
+  void paint(Canvas canvas, Size size) {
+    if (progress <= 0 || progress >= 1 || kind == null) return;
+    final center = Offset(face.dx * size.width, face.dy * size.height);
+    final radius = size.width * .038;
+    final opacity = math.sin(progress * math.pi);
+    final paint = Paint()
+      ..color = const Color(0xfff7e6b6).withValues(alpha: opacity);
+    if (kind == 'serum') {
+      final sweep = Path()
+        ..moveTo(center.dx - radius, center.dy + radius * .4)
+        ..quadraticBezierTo(
+          center.dx,
+          center.dy + radius * (1.6 - progress),
+          center.dx + radius,
+          center.dy + radius * .25,
+        );
+      canvas.drawPath(
+        sweep,
+        Paint()
+          ..color = Colors.white.withValues(alpha: opacity * .8)
+          ..style = PaintingStyle.stroke
+          ..strokeCap = StrokeCap.round
+          ..strokeWidth = radius * .55
+          ..maskFilter = const MaskFilter.blur(BlurStyle.normal, 4),
+      );
+      for (var i = 0; i < 3; i++) {
+        final t = (progress + i * .22) % 1;
+        canvas.drawOval(
+          Rect.fromCenter(
+            center:
+                center + Offset((i - 1) * radius * .85, (t - .5) * radius * 2),
+            width: radius * .23,
+            height: radius * .35,
+          ),
+          paint,
+        );
+      }
+    } else {
+      for (var i = 0; i < 5; i++) {
+        final angle = i * math.pi * 2 / 5;
+        final position =
+            center +
+            Offset(math.cos(angle), math.sin(angle)) *
+                radius *
+                (1 + progress * 1.8);
+        final r = radius * .25 * opacity;
+        canvas.drawLine(
+          position - Offset(r, 0),
+          position + Offset(r, 0),
+          paint..strokeWidth = 1.5,
+        );
+        canvas.drawLine(
+          position - Offset(0, r),
+          position + Offset(0, r),
+          paint,
+        );
+      }
+    }
+  }
+
+  @override
+  bool shouldRepaint(CareFeedbackPainter old) =>
+      old.progress != progress || old.face != face || old.kind != kind;
 }

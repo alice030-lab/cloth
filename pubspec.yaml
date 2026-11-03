@@ -1,7 +1,7 @@
 name: outfit_canvas
 description: 離線、可編輯的情境穿搭畫布。
 publish_to: none
-version: 0.2.0+2
+version: 0.3.0+3
 environment:
   sdk: '>=3.8.0 <4.0.0'
 dependencies:

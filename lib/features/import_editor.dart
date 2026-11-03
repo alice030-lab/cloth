@@ -1,4 +1,5 @@
 import 'dart:ui' as ui;
+import 'dart:async';
 import 'package:file_selector/file_selector.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
@@ -53,7 +54,8 @@ class _ImportEditorState extends State<ImportEditor> {
   final List<BrushStroke> strokes = [];
   double brush = 24, left = 0, right = 1, top = 0, bottom = 1;
   String mode = '擦除';
-  bool showOriginal = false, busy = false;
+  bool showOriginal = false, busy = false, automaticWorking = false;
+  int operation = 0;
   Kind kind = Kind.top;
   late final TextEditingController name = TextEditingController(
     text: widget.filename.split('.').first,
@@ -82,6 +84,7 @@ class _ImportEditorState extends State<ImportEditor> {
 
   @override
   void dispose() {
+    operation++;
     image?.dispose();
     segmented?.dispose();
     name.dispose();
@@ -90,8 +93,25 @@ class _ImportEditorState extends State<ImportEditor> {
   }
 
   Rect get crop => Rect.fromLTRB(left, top, right, bottom);
+  void cancelAutomatic() {
+    operation++;
+    setState(() {
+      busy = false;
+      automaticWorking = false;
+    });
+    ScaffoldMessenger.of(
+      context,
+    ).showSnackBar(const SnackBar(content: Text('已取消處理，原圖與編輯仍保留。')));
+  }
+
   Future<void> automatic() async {
-    setState(() => busy = true);
+    if (busy || image == null) return;
+    final token = ++operation;
+    bool active() => mounted && token == operation;
+    setState(() {
+      busy = true;
+      automaticWorking = true;
+    });
     try {
       if (kIsWeb ||
           ![
@@ -104,17 +124,20 @@ class _ImportEditorState extends State<ImportEditor> {
         );
       }
       final input = await image!.toByteData(format: ui.ImageByteFormat.png);
+      if (!active()) return;
       final bytes = await const MethodChannel('outfit_canvas/segmentation')
           .invokeMethod<Uint8List>('segment', {
             'bytes': input!.buffer.asUint8List(),
             'x': subjectPoint?.dx,
             'y': subjectPoint?.dy,
-          });
+          })
+          .timeout(const Duration(seconds: 25));
+      if (!active()) return;
       if (bytes == null) {
         throw const FormatException();
       }
       final decoded = await decodeBounded(bytes, longestEdge: 1200);
-      if (mounted) {
+      if (mounted && active()) {
         final old = segmented;
         setState(() {
           segmented = decoded;
@@ -124,27 +147,36 @@ class _ImportEditorState extends State<ImportEditor> {
       } else {
         decoded.dispose();
       }
+    } on TimeoutException {
+      if (mounted && active()) {
+        ScaffoldMessenger.of(
+          context,
+        ).showSnackBar(const SnackBar(content: Text('處理逾時，原圖仍保留。可重試或使用手動工具。')));
+      }
     } on PlatformException catch (e) {
-      if (mounted) {
+      if (mounted && active()) {
         ScaffoldMessenger.of(
           context,
         ).showSnackBar(SnackBar(content: Text(e.message ?? '去背不可用，請使用手動工具。')));
       }
     } on MissingPluginException {
-      if (mounted) {
+      if (mounted && active()) {
         ScaffoldMessenger.of(
           context,
         ).showSnackBar(const SnackBar(content: Text('此安裝版本尚未提供原生去背，請使用手動工具。')));
       }
     } catch (_) {
-      if (mounted) {
+      if (mounted && active()) {
         ScaffoldMessenger.of(
           context,
         ).showSnackBar(const SnackBar(content: Text('自動去背未成功，原圖仍保留，可繼續手動編輯。')));
       }
     } finally {
-      if (mounted) {
-        setState(() => busy = false);
+      if (mounted && active()) {
+        setState(() {
+          busy = false;
+          automaticWorking = false;
+        });
       }
     }
   }
@@ -224,277 +256,308 @@ class _ImportEditorState extends State<ImportEditor> {
   }
 
   @override
-  Widget build(BuildContext context) => Scaffold(
-    backgroundColor: paper,
-    appBar: AppBar(
-      title: const Text('匯入與修圖'),
-      actions: [
-        TextButton(onPressed: busy ? null : save, child: const Text('加入衣櫥')),
-      ],
-    ),
-    body: SafeArea(
-      child: Column(
-        children: [
-          Padding(
-            padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 4),
-            child: Text(
-              image == null
-                  ? '正在解碼圖片…'
-                  : kIsWeb
-                  ? '裝置端手動去背 · 圖片不會上傳'
-                  : (subjectPoint == null
-                        ? '圖片留在本機 · 「主體」模式可點選要保留的位置'
-                        : '已選主體 ${((subjectPoint!.dx) * 100).round()}%, ${((subjectPoint!.dy) * 100).round()}% · 點自動去背'),
-              style: const TextStyle(fontSize: 12, color: Color(0xff746660)),
+  Widget build(BuildContext context) => PopScope(
+    canPop: !busy,
+    onPopInvokedWithResult: (didPop, result) {
+      if (!didPop && automaticWorking) cancelAutomatic();
+    },
+    child: Scaffold(
+      backgroundColor: paper,
+      appBar: AppBar(
+        title: const Text('匯入與修圖'),
+        actions: [
+          TextButton(onPressed: busy ? null : save, child: const Text('加入衣櫥')),
+        ],
+      ),
+      body: SafeArea(
+        child: Column(
+          children: [
+            Padding(
+              padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 4),
+              child: Text(
+                image == null
+                    ? '正在解碼圖片…'
+                    : kIsWeb
+                    ? '裝置端手動去背 · 圖片不會上傳'
+                    : (subjectPoint == null
+                          ? '圖片留在本機 · 「主體」模式可點選要保留的位置'
+                          : '已選主體 ${((subjectPoint!.dx) * 100).round()}%, ${((subjectPoint!.dy) * 100).round()}% · 點自動去背'),
+                style: const TextStyle(fontSize: 12, color: Color(0xff746660)),
+              ),
             ),
-          ),
-          Expanded(
-            child: error != null
-                ? Center(child: Text(error!))
-                : image == null
-                ? const Center(child: CircularProgressIndicator())
-                : LayoutBuilder(
-                    builder: (context, b) {
-                      final ratio = image!.width / image!.height;
-                      return InteractiveViewer(
-                        panEnabled: mode == '移動',
-                        scaleEnabled: mode == '移動',
-                        minScale: .5,
-                        maxScale: 5,
-                        child: Center(
-                          child: AspectRatio(
-                            aspectRatio: ratio,
-                            child: LayoutBuilder(
-                              builder: (context, box) {
-                                Offset normalized(Offset p) => Offset(
-                                  p.dx / box.maxWidth,
-                                  p.dy / box.maxHeight,
-                                );
-                                return GestureDetector(
-                                  onTapDown: mode == '主體'
-                                      ? (d) => setState(
-                                          () => subjectPoint = normalized(
-                                            d.localPosition,
-                                          ),
-                                        )
-                                      : null,
-                                  onPanStart:
-                                      (mode == '移動' ||
-                                          mode == '主體' ||
-                                          showOriginal ||
-                                          busy)
-                                      ? null
-                                      : (d) {
-                                          final p = normalized(d.localPosition);
-                                          setState(
+            Expanded(
+              child: error != null
+                  ? Center(child: Text(error!))
+                  : image == null
+                  ? const Center(child: CircularProgressIndicator())
+                  : LayoutBuilder(
+                      builder: (context, b) {
+                        final ratio = image!.width / image!.height;
+                        return InteractiveViewer(
+                          panEnabled: mode == '移動',
+                          scaleEnabled: mode == '移動',
+                          minScale: .5,
+                          maxScale: 5,
+                          child: Center(
+                            child: AspectRatio(
+                              aspectRatio: ratio,
+                              child: LayoutBuilder(
+                                builder: (context, box) {
+                                  Offset normalized(Offset p) => Offset(
+                                    p.dx / box.maxWidth,
+                                    p.dy / box.maxHeight,
+                                  );
+                                  return GestureDetector(
+                                    key: const ValueKey('mask-canvas'),
+                                    onTapUp:
+                                        (mode == '擦除' || mode == '還原') &&
+                                            !showOriginal &&
+                                            !busy
+                                        ? (d) => setState(
                                             () => strokes.add(
                                               BrushStroke(
-                                                [p],
+                                                [normalized(d.localPosition)],
                                                 brush / image!.width,
                                                 mode == '還原',
                                               ),
                                             ),
-                                          );
-                                        },
-                                  onPanUpdate:
-                                      (mode == '移動' ||
-                                          mode == '主體' ||
-                                          showOriginal ||
-                                          busy)
-                                      ? null
-                                      : (d) {
-                                          setState(
-                                            () => strokes.last.points.add(
-                                              normalized(d.localPosition),
+                                          )
+                                        : null,
+                                    onTapDown: mode == '主體'
+                                        ? (d) => setState(
+                                            () => subjectPoint = normalized(
+                                              d.localPosition,
                                             ),
-                                          );
-                                        },
-                                  child: CustomPaint(
-                                    painter: CheckerPainter(),
-                                    foregroundPainter: CropOverlay(crop),
+                                          )
+                                        : null,
+                                    onPanStart:
+                                        (mode == '移動' ||
+                                            mode == '主體' ||
+                                            showOriginal ||
+                                            busy)
+                                        ? null
+                                        : (d) {
+                                            final p = normalized(
+                                              d.localPosition,
+                                            );
+                                            setState(
+                                              () => strokes.add(
+                                                BrushStroke(
+                                                  [p],
+                                                  brush / image!.width,
+                                                  mode == '還原',
+                                                ),
+                                              ),
+                                            );
+                                          },
+                                    onPanUpdate:
+                                        (mode == '移動' ||
+                                            mode == '主體' ||
+                                            showOriginal ||
+                                            busy)
+                                        ? null
+                                        : (d) {
+                                            setState(
+                                              () => strokes.last.points.add(
+                                                normalized(d.localPosition),
+                                              ),
+                                            );
+                                          },
                                     child: CustomPaint(
-                                      painter: MaskPainter(
-                                        image!,
-                                        strokes,
-                                        baseline: segmented,
-                                        original: showOriginal,
+                                      painter: CheckerPainter(),
+                                      foregroundPainter: CropOverlay(crop),
+                                      child: CustomPaint(
+                                        painter: MaskPainter(
+                                          image!,
+                                          strokes,
+                                          baseline: segmented,
+                                          original: showOriginal,
+                                        ),
+                                        size: Size.infinite,
                                       ),
-                                      size: Size.infinite,
                                     ),
-                                  ),
-                                );
-                              },
+                                  );
+                                },
+                              ),
+                            ),
+                          ),
+                        );
+                      },
+                    ),
+            ),
+            if (busy) const LinearProgressIndicator(),
+            if (automaticWorking)
+              TextButton.icon(
+                onPressed: cancelAutomatic,
+                icon: const Icon(Icons.close),
+                label: const Text('取消處理'),
+              ),
+            SizedBox(
+              height: 280,
+              child: SingleChildScrollView(
+                padding: const EdgeInsets.fromLTRB(16, 8, 16, 12),
+                child: Column(
+                  children: [
+                    Wrap(
+                      spacing: 6,
+                      runSpacing: 4,
+                      alignment: WrapAlignment.center,
+                      children: [
+                        for (final m in ['擦除', '還原', '移動', '主體'])
+                          ChoiceChip(
+                            label: Text(m),
+                            selected: mode == m,
+                            onSelected: busy
+                                ? null
+                                : (_) => setState(() => mode = m),
+                          ),
+                        FilterChip(
+                          label: const Text('原圖'),
+                          selected: showOriginal,
+                          onSelected: busy
+                              ? null
+                              : (v) => setState(() => showOriginal = v),
+                        ),
+                        IconButton(
+                          tooltip: '復原筆刷',
+                          onPressed: strokes.isEmpty || busy
+                              ? null
+                              : () => setState(() => strokes.removeLast()),
+                          icon: const Icon(Icons.undo),
+                        ),
+                        IconButton(
+                          tooltip: '重設編輯',
+                          onPressed: busy
+                              ? null
+                              : () => setState(() {
+                                  strokes.clear();
+                                  segmented?.dispose();
+                                  segmented = null;
+                                  subjectPoint = null;
+                                  left = top = 0;
+                                  right = bottom = 1;
+                                }),
+                          icon: const Icon(Icons.restart_alt),
+                        ),
+                      ],
+                    ),
+                    Row(
+                      children: [
+                        const Text('筆刷'),
+                        Expanded(
+                          child: Slider(
+                            value: brush,
+                            min: 4,
+                            max: 140,
+                            onChanged: busy
+                                ? null
+                                : (v) => setState(() => brush = v),
+                          ),
+                        ),
+                        Text('${brush.round()} px'),
+                      ],
+                    ),
+                    ExpansionTile(
+                      tilePadding: EdgeInsets.zero,
+                      title: const Text('裁切邊界', style: TextStyle(fontSize: 14)),
+                      children: [
+                        for (final entry in [
+                          ('左', left),
+                          ('右', right),
+                          ('上', top),
+                          ('下', bottom),
+                        ])
+                          Row(
+                            children: [
+                              Text(entry.$1),
+                              Expanded(
+                                child: Slider(
+                                  value: entry.$2,
+                                  min: 0,
+                                  max: 1,
+                                  onChanged: busy
+                                      ? null
+                                      : (v) => setState(() {
+                                          switch (entry.$1) {
+                                            case '左':
+                                              left = v
+                                                  .clamp(0, right - .05)
+                                                  .toDouble();
+                                            case '右':
+                                              right = v
+                                                  .clamp(left + .05, 1)
+                                                  .toDouble();
+                                            case '上':
+                                              top = v
+                                                  .clamp(0, bottom - .05)
+                                                  .toDouble();
+                                            case '下':
+                                              bottom = v
+                                                  .clamp(top + .05, 1)
+                                                  .toDouble();
+                                          }
+                                        }),
+                                ),
+                              ),
+                            ],
+                          ),
+                      ],
+                    ),
+                    Row(
+                      children: [
+                        Expanded(
+                          child: TextField(
+                            controller: name,
+                            decoration: const InputDecoration(
+                              labelText: '單品名稱',
                             ),
                           ),
                         ),
-                      );
-                    },
-                  ),
-          ),
-          if (busy) const LinearProgressIndicator(),
-          SizedBox(
-            height: 280,
-            child: SingleChildScrollView(
-              padding: const EdgeInsets.fromLTRB(16, 8, 16, 12),
-              child: Column(
-                children: [
-                  Wrap(
-                    spacing: 6,
-                    runSpacing: 4,
-                    alignment: WrapAlignment.center,
-                    children: [
-                      for (final m in ['擦除', '還原', '移動', '主體'])
-                        ChoiceChip(
-                          label: Text(m),
-                          selected: mode == m,
-                          onSelected: busy
-                              ? null
-                              : (_) => setState(() => mode = m),
+                        const SizedBox(width: 12),
+                        Expanded(
+                          child: DropdownButtonFormField<Kind>(
+                            initialValue: kind,
+                            decoration: const InputDecoration(labelText: '類別'),
+                            items: Kind.values
+                                .map(
+                                  (k) => DropdownMenuItem(
+                                    value: k,
+                                    child: Text(k.label),
+                                  ),
+                                )
+                                .toList(),
+                            onChanged: busy
+                                ? null
+                                : (v) => setState(() => kind = v!),
+                          ),
                         ),
-                      FilterChip(
-                        label: const Text('原圖'),
-                        selected: showOriginal,
-                        onSelected: busy
-                            ? null
-                            : (v) => setState(() => showOriginal = v),
-                      ),
-                      IconButton(
-                        tooltip: '復原筆刷',
-                        onPressed: strokes.isEmpty || busy
-                            ? null
-                            : () => setState(() => strokes.removeLast()),
-                        icon: const Icon(Icons.undo),
-                      ),
-                      IconButton(
-                        tooltip: '重設編輯',
-                        onPressed: busy
-                            ? null
-                            : () => setState(() {
-                                strokes.clear();
-                                segmented?.dispose();
-                                segmented = null;
-                                subjectPoint = null;
-                                left = top = 0;
-                                right = bottom = 1;
-                              }),
-                        icon: const Icon(Icons.restart_alt),
-                      ),
-                    ],
-                  ),
-                  Row(
-                    children: [
-                      const Text('筆刷'),
-                      Expanded(
-                        child: Slider(
-                          value: brush,
-                          min: 4,
-                          max: 140,
-                          onChanged: busy
-                              ? null
-                              : (v) => setState(() => brush = v),
-                        ),
-                      ),
-                      Text('${brush.round()} px'),
-                    ],
-                  ),
-                  ExpansionTile(
-                    tilePadding: EdgeInsets.zero,
-                    title: const Text('裁切邊界', style: TextStyle(fontSize: 14)),
-                    children: [
-                      for (final entry in [
-                        ('左', left),
-                        ('右', right),
-                        ('上', top),
-                        ('下', bottom),
-                      ])
-                        Row(
-                          children: [
-                            Text(entry.$1),
-                            Expanded(
-                              child: Slider(
-                                value: entry.$2,
-                                min: 0,
-                                max: 1,
-                                onChanged: busy
-                                    ? null
-                                    : (v) => setState(() {
-                                        switch (entry.$1) {
-                                          case '左':
-                                            left = v
-                                                .clamp(0, right - .05)
-                                                .toDouble();
-                                          case '右':
-                                            right = v
-                                                .clamp(left + .05, 1)
-                                                .toDouble();
-                                          case '上':
-                                            top = v
-                                                .clamp(0, bottom - .05)
-                                                .toDouble();
-                                          case '下':
-                                            bottom = v
-                                                .clamp(top + .05, 1)
-                                                .toDouble();
-                                        }
-                                      }),
-                              ),
-                            ),
-                          ],
-                        ),
-                    ],
-                  ),
-                  Row(
-                    children: [
-                      Expanded(
-                        child: TextField(
-                          controller: name,
-                          decoration: const InputDecoration(labelText: '單品名稱'),
-                        ),
-                      ),
-                      const SizedBox(width: 12),
-                      Expanded(
-                        child: DropdownButtonFormField<Kind>(
-                          initialValue: kind,
-                          decoration: const InputDecoration(labelText: '類別'),
-                          items: Kind.values
-                              .map(
-                                (k) => DropdownMenuItem(
-                                  value: k,
-                                  child: Text(k.label),
-                                ),
-                              )
-                              .toList(),
-                          onChanged: busy
-                              ? null
-                              : (v) => setState(() => kind = v!),
-                        ),
-                      ),
-                    ],
-                  ),
-                  const SizedBox(height: 8),
-                  TextField(
-                    controller: source,
-                    keyboardType: TextInputType.url,
-                    decoration: const InputDecoration(labelText: '來源網址（選填）'),
-                  ),
-                  const SizedBox(height: 10),
-                  Text(
-                    kind == Kind.reference
-                        ? '模特兒圖作為完整穿著參考貼紙，不會自動分離衣服。'
-                        : '衣架或多件商品可能需要手動擦除，請確認透明邊緣。',
-                    style: const TextStyle(fontSize: 12),
-                  ),
-                  const SizedBox(height: 8),
-                  OutlinedButton.icon(
-                    onPressed: busy ? null : automatic,
-                    icon: const Icon(Icons.auto_fix_high_outlined),
-                    label: Text(kIsWeb ? '自動去背支援說明' : '嘗試裝置端自動去背'),
-                  ),
-                ],
+                      ],
+                    ),
+                    const SizedBox(height: 8),
+                    TextField(
+                      controller: source,
+                      keyboardType: TextInputType.url,
+                      decoration: const InputDecoration(labelText: '來源網址（選填）'),
+                    ),
+                    const SizedBox(height: 10),
+                    Text(
+                      kind == Kind.reference
+                          ? '模特兒圖作為完整穿著參考貼紙，不會自動分離衣服。'
+                          : '衣架或多件商品可能需要手動擦除，請確認透明邊緣。',
+                      style: const TextStyle(fontSize: 12),
+                    ),
+                    const SizedBox(height: 8),
+                    OutlinedButton.icon(
+                      onPressed: busy ? null : automatic,
+                      icon: const Icon(Icons.auto_fix_high_outlined),
+                      label: Text(kIsWeb ? '自動去背支援說明' : '嘗試裝置端自動去背'),
+                    ),
+                  ],
+                ),
               ),
             ),
-          ),
-        ],
+          ],
+        ),
       ),
     ),
   );

@@ -107,15 +107,11 @@ class _EditorPageState extends State<EditorPage> with WidgetsBindingObserver {
     );
     try {
       await e.welcome();
+      if (mounted && result == 'body') await bodyPanel();
+      if (!mounted) return;
       await before();
       e.changed();
-      if (mounted) {
-        if (result == 'body') {
-          bodyPanel();
-        } else {
-          setState(() => stage = 1);
-        }
-      }
+      setState(() => stage = 1);
     } catch (_) {
       message('偏好設定儲存失敗，可以繼續試玩。');
     }
@@ -123,7 +119,7 @@ class _EditorPageState extends State<EditorPage> with WidgetsBindingObserver {
 
   Future<Uint8List> capture() async {
     await Future.wait([
-      if (photographic(e.doc.body)) FashionImages.load('avatar'),
+      if (photographic(e.doc.body)) FashionImages.load(avatarSheet(e.doc.body)),
       if (e.doc.layers.any(
         (l) => [
           'blouse',
@@ -141,6 +137,9 @@ class _EditorPageState extends State<EditorPage> with WidgetsBindingObserver {
       ))
         FashionImages.load('accessories'),
     ]);
+    if (captureKey.currentContext != null) {
+      await waitForCanvasAssets(captureKey.currentContext!);
+    }
     await WidgetsBinding.instance.endOfFrame;
     final boundary =
         captureKey.currentContext?.findRenderObject() as RenderRepaintBoundary?;
@@ -331,6 +330,7 @@ class _EditorPageState extends State<EditorPage> with WidgetsBindingObserver {
           l.x = value.x;
           l.y = value.y;
           l.scale = value.scale;
+          l.widthScale = value.widthScale;
           l.rotation = value.rotation;
           l.snappedTo = null;
         });
@@ -502,6 +502,7 @@ class _EditorPageState extends State<EditorPage> with WidgetsBindingObserver {
                 style: TextStyle(
                   fontSize: 29,
                   fontFamily: 'ClothEditorial',
+                  fontFamilyFallback: ['NotoSansTC'],
                   fontWeight: FontWeight.w500,
                   letterSpacing: 3,
                 ),
@@ -867,6 +868,7 @@ class _EditorPageState extends State<EditorPage> with WidgetsBindingObserver {
               style: const TextStyle(
                 fontSize: 18,
                 fontFamily: 'ClothEditorial',
+                fontFamilyFallback: ['NotoSansTC'],
                 letterSpacing: 2,
               ),
             ),

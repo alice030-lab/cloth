@@ -4,7 +4,7 @@
 
 **公開 App：[穿搭預演](https://app.uslinkyou.com/)**。由 main 分支的 GitHub Actions 部署；詳見 [部署設定](docs/GITHUB_PAGES.md)。
 
-**目前已完成真正 Flutter Web 編譯與核心操作驗證。** 靜態分析零問題、35 項 Flutter 測試與 7 項輔助工具測試通過。Chromium 已驗證試玩、主題、體型面板、PNG 匯入、作品儲存／重新載入／重開、完成圖／前後對比卡 PNG 匯出、五場景切換與離線重載／匯入／儲存／匯出。[A01–A20 驗收表](docs/ACCEPTANCE.md) 區分通過與未測項目；iOS／Android 原生去背、實機多指操作與完整 P0 尚未全部驗證。
+**目前已完成真正 Flutter Web 編譯與核心操作驗證。** 靜態分析零問題、40 項 Flutter 測試與 7 項輔助工具測試通過。Chromium 已驗證試玩、主題、體型面板、PNG 匯入、作品儲存／重新載入／重開、完成圖／前後對比卡 PNG 匯出、五場景切換與離線重載／匯入／儲存／匯出。[A01–A20 驗收表](docs/ACCEPTANCE.md) 區分通過與未測項目；iOS／Android 原生去背、實機多指操作與完整 P0 尚未全部驗證。
 
 ## 啟動
 
@@ -42,13 +42,13 @@ CHROME_PATH=/usr/bin/chromium node tool/browser_smoke.mjs
 flutter --suppress-analytics run -d <裝置ID>
 ```
 
-已實際產生 ios/、android/ runner 並接好 native/ adapter。bootstrap 會冪等更新介面設定，保留已有 runner。iOS 需 macOS/Xcode；Android 需 Android SDK 與支援的裝置。本次 Linux 環境沒有這些原生驗證條件，未宣稱 APK、iOS build、真機分享或 ML 品質通過。
+已實際產生 ios/、android/ runner 並接好 native/ adapter。bootstrap 會冪等更新介面設定，保留已有 runner。iOS 需 macOS/Xcode；Android 需 Android SDK 與支援的裝置。已新增 [原生建置 CI](https://github.com/alice030-lab/cloth/actions/workflows/native.yml)，首輪 run 41594945631 的 Android debug APK 與 iOS 模擬器 App 均編譯成功，產物可在 Actions 的 Artifacts 下載。這不代表真機分享或 ML 品質已驗證；iOS 模擬器 App 不能直接安裝到 iPhone。此 Linux 環境另已安裝 Android SDK，但本機 JRE 缺少 javac，未把本機 APK 建置失敗寫成成功。
 
 | 平台 | 本機資料與匯入 | 自動去背 | 匯出 |
 |---|---|---|---|
 | Web | IndexedDB；PNG 匯入與重開已實測；手動擦除／還原有像素測試 | 明示使用手動工具 | 真實 PNG 下載通過 |
-| iOS | 原生資料庫與檔案選取程式已接入，待裝置驗證 | Vision iOS 17+，含 instance 點選 adapter，未實測 | 儲存對話框與分享介面待驗證 |
-| Android | 原生資料庫與檔案選取程式已接入，待裝置驗證 | ML Kit adapter，可能先下載模型；整體前景可用性待驗證，單一 instance 點選尚未完成 | 儲存對話框與分享介面待驗證 |
+| iOS | 模擬器 App 編譯通過；資料與權限待裝置驗證 | Vision iOS 17+，含 instance 點選 adapter，未實測 | 儲存對話框與分享介面待驗證 |
+| Android | debug APK 編譯通過；資料與權限待裝置驗證 | ML Kit adapter，可能先下載模型；整體前景可用性待驗證，單一 instance 點選尚未完成 | 儲存對話框與分享介面待驗證 |
 
 ## 功能與結構
 
@@ -60,7 +60,7 @@ flutter --suppress-analytics run -d <裝置ID>
 - 草稿自動儲存與重試、可編輯作品、副本、重新命名、刪除、前後圖卡與 PNG 匯出。
 - 離線 worker、資源引用清理、資料清除與本機隱私。
 
-`lib/core/` 為模型／控制器／解碼；`lib/data/` 為 Repository；`lib/features/` 為畫布、修圖與頁面；`lib/painting/` 為原創繪製；`native/` 為平台去背。23 個模型／持久化測試與 12 個 widget 實例，包含三種尺寸、1.5 倍字體、實際拖曳／長按拖放、檔案關閉重開、解碼與透明像素還原。
+`lib/core/` 為模型／控制器／解碼；`lib/data/` 為 Repository；`lib/features/` 為畫布、修圖與頁面；`lib/painting/` 為原創繪製；`native/` 為平台去背。24 個模型／持久化、12 個編輯器 widget 與 4 個修圖介面測試，包含三種尺寸、1.5 倍字體、實際拖曳／長按拖放、檔案關閉重開、解碼與透明像素還原。
 
 使用 Sembast 統一 IndexedDB 與原生儲存，圖片以 blob asset ID 引用；文件有 schemaVersion，依賴已有真正的 pubspec.lock。衣櫥刪除採封存，清理只移除草稿、作品、衣櫥均無引用的 blob。圖片與身材不主動上傳。Web 資料依 origin 隔離，清瀏覽器資料或解除安裝會影響作品，PNG 匯出不是可編輯備份。
 
@@ -78,3 +78,13 @@ flutter --suppress-analytics run -d <裝置ID>
 ## 公開部署
 
 GitHub Pages 自動部署與 `app.uslinkyou.com` 的設定步驟見 [GITHUB_PAGES.md](docs/GITHUB_PAGES.md)。main 更新會觸發部署流程；DNS 和儲存庫 Pages 功能需另外啟用。
+
+## 延伸驗收與原生產物
+
+在同一個本機 release server 上執行：
+
+```bash
+APP_URL=http://127.0.0.1:8080 CHROME_PATH=/usr/bin/chromium node tool/browser_acceptance.mjs
+```
+
+此腳本操作三種性別外觀、作品重新命名／複製／刪除與取消、重開及清除資料後重新載入。`browser_smoke.mjs` 另外記錄請求，驗證實際匯入／儲存／匯出過程沒有跨來源請求。字型與引擎資源均使用同來源檔案；不支援的字形不會改向 Google 字型服務下載。原生 CI 產物為測試用途，並非 App Store 或 Play Store 上架包。

@@ -11,7 +11,7 @@ Future<Uint8List> renderBefore(EditorController editor) async {
   const size = Size(800, 1000);
   final doc = editor.doc;
   final avatar = photographic(doc.body)
-      ? await FashionImages.load('avatar')
+      ? await FashionImages.load(avatarSheet(doc.body))
       : null;
   final recorder = ui.PictureRecorder();
   final canvas = Canvas(recorder);

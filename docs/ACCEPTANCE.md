@@ -13,9 +13,9 @@
 | 命令／檢查 | 結果 |
 |---|---|
 | flutter --suppress-analytics analyze | 通過，No issues found |
-| flutter --suppress-analytics test --reporter expanded | 35 項通過：23 模型／持久化、12 widget 實例 |
+| flutter --suppress-analytics test --reporter expanded | 40 項通過：24 模型／持久化、12 編輯器 widget、4 修圖介面 |
 | flutter --suppress-analytics build web --release --no-web-resources-cdn | 通過；JavaScript release 與 Wasm dry run 成功，未做 Wasm runtime 驗收 |
-| python3 tool/generate_offline_worker.py | 成功，45 個同來源資源 |
+| python3 tool/generate_offline_worker.py | 成功，46 個同來源資源 |
 | python3 -m unittest discover -s tool -p test_tooling.py -v | 3 個輔助腳本測試通過 |
 | tool/browser_smoke.mjs + Chromium | 通過：試玩→套主題→體型面板→選圖→修圖匯入→立即試穿→登場→儲存→下載 PNG→reload→作品集→縮圖重開→離線 reload；360/390/430 寬截圖 |
 | tool/bootstrap_platforms.sh | 實際執行成功，產生 iOS／Android runner 並接入 adapter；不代表原生 build 通過 |
@@ -53,7 +53,9 @@
 
 ## 原生與研究限制
 
-本機是 Linux，沒有 macOS／Xcode，也沒有 Android SDK、adb、sdkmanager 或實體裝置。因此本次未產生／驗證 iOS build、APK、Vision／ML Kit 品質、裝置權限與原生分享。Android 單一 instance 點選目前明示不支援。Web 手動模式已能獨立完成核心工作；不拿 Web 成功代替原生結果。
+本機是 Linux，沒有 macOS／Xcode 或實體裝置。本輪已成功安裝 Android SDK 36 與 NDK；本機 APK 建置仍因 JRE 沒有 javac 而失敗，因此未宣稱本機 APK 成功。
+
+[原生 CI run 41594945631](https://github.com/alice030-lab/cloth/actions/runs/41594945631) 在 GitHub 的 Ubuntu／macOS runner 實際成功編譯 Android debug APK 與 iOS 模擬器 App，並各自上傳 Artifact。這是編譯證據，不能代替 Vision／ML Kit 品質、裝置權限與原生分享驗證。Android 單一 instance 點選目前仍明示不支援。
 
 70 張真實網拍／自拍樣本、10 位目標使用者測試、正式美術滿意度尚未執行，先前 pilot 成功率不是本次數據。
 
@@ -68,3 +70,7 @@
 詳見 VISUAL_REBUILD.md 與 ASSETS.md。新增寫實示範人物、12 件獨立服裝／鞋包、前後髮、四個新寫實場景與繁中襯線標題；保留五官與身材的限制說明。胸／腰／臀為局部網格變形，不宣稱校準量測或真人像似度。35 項 Flutter 測試、7 項 Python 輔助測試；瀏覽器擴充到五場景、前後對比卡 PNG 和真正離線匯入／儲存／匯出。這些通過不等於原生 P0、正式美術與研究驗收完成。
 
 瀏覽器截圖固定實際 viewport（不擷取螢幕閱讀語意層造成的文件延伸），新增 08-scene-*.png、comparison.png、offline-export.png。
+
+## 0.3 操作與原生驗收
+
+本輪 40 項 Flutter 測試涵蓋單點擦除／還原的實際介面與 Alpha 輸出、錯誤格式、取消原生處理後忽略晚回應、保養使用狀態與 undo，以及非預設圖層寬度的 JSON roundtrip。另已新增 browser_acceptance.mjs 操作三種外觀及作品管理／清除資料矩陣，結果依部署紀錄補記。browser_smoke.mjs 同時檢查跨來源請求與失敗的同來源資源，避免以限制外連掩蓋缺少的字型檔。

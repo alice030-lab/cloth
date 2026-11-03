@@ -10,6 +10,8 @@ const browser = await chromium.launch({executablePath:process.env.CHROME_PATH ||
 const context=await browser.newContext({viewport:{width:390,height:844},deviceScaleFactor:1,acceptDownloads:true});
 const page=await context.newPage();
 const errors=[];page.on('pageerror',e=>errors.push(e.message));
+const badResponses=[];page.on('response',response=>{if(response.status()>=400)badResponses.push(response.status()+' '+response.url());});
+const external=new Set();context.on('request',request=>{const url=new URL(request.url());if(['http:','https:'].includes(url.protocol)&&url.origin!==new URL(base).origin)external.add(url.href);});
 async function accessible(){
   await page.locator('flt-semantics-placeholder, flt-semantics').first().waitFor({state:'attached'});
   const placeholder=page.locator('flt-semantics-placeholder');
@@ -87,5 +89,7 @@ try{
   await (await offlineDownload).saveAs(path.join(out,'offline-export.png'));
   const offlineBytes=await fs.readFile(path.join(out,'offline-export.png'));
   assert.deepEqual([...offlineBytes.subarray(0,8)],[137,80,78,71,13,10,26,10]);
+  assert.deepEqual([...external],[], 'App must not send photos or fetch remote dependencies');
+  assert.deepEqual(badResponses,[], 'All bundled resources must load successfully');
   assert.deepEqual(errors,[]);console.log('Browser flow passed: five scenes, theme, body, import, editable save/reopen, completed and comparison PNGs, offline reload/import/save/export.');
 }catch(error){await page.screenshot({path:'/tmp/cloth-browser-failure.png'});console.log((await page.locator('body').ariaSnapshot()).slice(0,12000));throw error;}finally{await browser.close();}

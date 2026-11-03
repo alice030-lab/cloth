@@ -15,6 +15,8 @@ class EditorController extends ChangeNotifier {
   String? loadError;
   bool welcomed = false;
   bool guideDone = false;
+  int careEvent = 0;
+  String? careKind;
   final List<CanvasDocument> _undo = [], _redo = [];
   Timer? _timer;
   Future<void> _writes = Future.value();
@@ -171,6 +173,14 @@ class EditorController extends ChangeNotifier {
     l.y = p.dy;
     l.snappedTo = a;
     final it = item(l.itemId);
+    l.widthScale =
+        doc.body.appearance == 'photo' && doc.body.gender == 'masculine'
+        ? (l.kind == Kind.bottom
+              ? 1.35
+              : l.kind == Kind.shoes
+              ? 1.18
+              : 1)
+        : 1;
     if (l.kind == Kind.bottom) {
       l.scale = it.shape == 'skirt'
           ? .43
@@ -198,6 +208,18 @@ class EditorController extends ChangeNotifier {
     guideDone = true;
     unawaited(repo.setGuided().catchError((Object error) {}));
     notifyListeners();
+  }
+
+  void useCare(CanvasLayer layer) {
+    final id = item(layer.itemId).id;
+    if (id != 'patch' && id != 'serum') return;
+    change(() {
+      layer.activated = !layer.activated;
+      if (layer.activated) {
+        careKind = id;
+        careEvent++;
+      }
+    });
   }
 
   void add(Item it, {Offset? at}) {
@@ -291,10 +313,8 @@ class EditorController extends ChangeNotifier {
     doc.scene = 'cafe';
     doc.layers.removeWhere((l) => !item(l.itemId).custom);
     for (final id in [
-      if (doc.body.appearance != 'photo' || doc.body.gender != 'feminine')
-        'hair_back',
-      if (doc.body.appearance != 'photo' || doc.body.gender != 'feminine')
-        'hair_front',
+      if (doc.body.appearance != 'photo') 'hair_back',
+      if (doc.body.appearance != 'photo') 'hair_front',
       'tee_white',
       'jeans',
       'shoes_wine',

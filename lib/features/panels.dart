@@ -147,7 +147,7 @@ class _BodyPanelState extends State<BodyPanel> {
               ),
               const SizedBox(height: 8),
               const Text(
-                '寫實素材目前提供女性外觀；其他性別表現使用可變形插畫。照片為內建示範人物，不代表你的長相。',
+                '三種性別表現皆有寫實示範人物，也可切換插畫。這些是內建人物，不代表你的長相。',
                 style: TextStyle(fontSize: 12, color: Color(0xff746660)),
               ),
               const SizedBox(height: 18),
@@ -834,6 +834,7 @@ class _LayerAdjustmentState extends State<LayerAdjustment> {
             ('水平位置', value.x, 0.02, 0.98),
             ('垂直位置', value.y, 0.02, 0.96),
             ('大小', value.scale, 0.03, 2.0),
+            ('寬度', value.widthScale, .5, 2.5),
             (
               '旋轉',
               value.rotation.clamp(-3.14159, 3.14159).toDouble(),
@@ -857,6 +858,8 @@ class _LayerAdjustmentState extends State<LayerAdjustment> {
                           value.y = v;
                         case '大小':
                           value.scale = v;
+                        case '寬度':
+                          value.widthScale = v;
                         case '旋轉':
                           value.rotation = v;
                       }
