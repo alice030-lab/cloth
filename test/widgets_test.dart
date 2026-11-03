@@ -1,4 +1,5 @@
 import 'dart:ui' as ui;
+import 'dart:typed_data';
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:sembast/sembast_memory.dart';
@@ -10,11 +11,25 @@ import 'package:outfit_canvas/main.dart';
 import 'package:outfit_canvas/features/panels.dart';
 import 'package:outfit_canvas/features/canvas_view.dart';
 import 'package:outfit_canvas/features/import_editor.dart';
+import 'package:outfit_canvas/painting/fashion.dart';
 
 void main() {
   // Sembast yields with real-time timers; disable only that scheduler for
   // WidgetTester fake time. Persistence operations and assertions remain real.
-  setUpAll(disableSembastCooperator);
+  setUpAll(() async {
+    disableSembastCooperator();
+    // Decode real sprite pixels outside WidgetTester fake time. Hit tests use
+    // the real transparency mask, not a placeholder or a mocked rectangle.
+    await Future.wait(
+      [
+        'garments',
+        'extras',
+        'accessories',
+        'avatar',
+        'scenes',
+      ].map(FashionImages.load),
+    );
+  });
   tearDownAll(enableSembastCooperator);
   late EditorController editor;
   setUp(() async {
@@ -144,6 +159,41 @@ void main() {
     expect(current.snappedTo, isNull);
     await drain(tester, editor.flush());
   });
+  testWidgets('two pointers translate scale rotate and undo as one gesture', (
+    tester,
+  ) async {
+    addTearDown(() => cleanup(tester));
+    editor.add(editor.item('tee_white'), at: const Offset(.5, .4));
+    final original = editor.doc.layers.single.copy();
+    await tester.pumpWidget(OutfitApp(editor: editor));
+    await tester.pumpAndSettle();
+    final target = find.byWidgetPredicate(
+      (w) => w is GestureLayer && w.layer.itemId == 'tee_white',
+    );
+    final center = tester.getCenter(target);
+    final first = await tester.startGesture(
+      center - const Offset(14, 0),
+      pointer: 1,
+    );
+    final second = await tester.startGesture(
+      center + const Offset(14, 0),
+      pointer: 2,
+    );
+    await first.moveTo(center + const Offset(-20, 20));
+    await second.moveTo(center + const Offset(35, 50));
+    await tester.pump();
+    final transformed = editor.doc.layers.single;
+    expect(transformed.scale, greaterThan(original.scale));
+    expect(transformed.rotation.abs(), greaterThan(.1));
+    expect(transformed.y, greaterThan(original.y));
+    await first.up();
+    await second.up();
+    await tester.pumpAndSettle();
+    editor.undo();
+    expect(editor.doc.layers.single.toJson(), original.toJson());
+    await tester.pumpAndSettle();
+    await drain(tester, editor.flush());
+  });
   testWidgets('toolbar long press drop creates a free layer on the canvas', (
     tester,
   ) async {
@@ -163,6 +213,53 @@ void main() {
     expect(editor.doc.layers.single.snappedTo, isNull);
     expect(editor.doc.layers.single.x, inInclusiveRange(.02, .98));
     await drain(tester, editor.flush());
+  });
+  testWidgets('transparent sprite openings pass pointer hits to lower layers', (
+    tester,
+  ) async {
+    addTearDown(() => cleanup(tester));
+    final alpha = Uint8List.fromList(List.filled(16, 255));
+    for (final index in [5, 6, 9, 10]) {
+      alpha[index] = 0;
+    }
+    var selected = '';
+    await tester.pumpWidget(
+      MaterialApp(
+        home: Center(
+          child: SizedBox(
+            width: 100,
+            height: 100,
+            child: Stack(
+              children: [
+                Positioned.fill(
+                  child: GestureDetector(
+                    onTap: () => selected = 'shirt',
+                    child: const ColoredBox(color: Colors.white),
+                  ),
+                ),
+                Positioned.fill(
+                  child: GestureDetector(
+                    behavior: HitTestBehavior.deferToChild,
+                    onTap: () => selected = 'hair',
+                    child: SpriteHitRegion(
+                      key: const ValueKey('mask'),
+                      mask: SpriteMask(4, 4, alpha),
+                      region: const Rect.fromLTWH(0, 0, 1, 1),
+                      child: const ColoredBox(color: Colors.brown),
+                    ),
+                  ),
+                ),
+              ],
+            ),
+          ),
+        ),
+      ),
+    );
+    final target = find.byKey(const ValueKey('mask'));
+    await tester.tapAt(tester.getCenter(target));
+    expect(selected, 'shirt');
+    await tester.tapAt(tester.getTopLeft(target) + const Offset(5, 5));
+    expect(selected, 'hair');
   });
   testWidgets('bounded codec keeps tall images within output budget', (
     tester,

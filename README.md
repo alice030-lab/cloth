@@ -2,9 +2,9 @@
 
 購買前的情境換裝畫布。Flutter 3.47.8 / Dart 3.13.7，本機優先，不需帳號或 API 金鑰。
 
-**公開 App：[穿搭預演](http://app.uslinkyou.com/)**。自訂網域根路徑已部署成功，[部署紀錄](https://github.com/alice030-lab/cloth/actions/runs/40470732019)。目前 GitHub 憑證仍在準備，HTTPS 尚未強制啟用；就緒後應使用 HTTPS。
+**公開 App：[穿搭預演](https://app.uslinkyou.com/)**。由 main 分支的 GitHub Actions 部署；詳見 [部署設定](docs/GITHUB_PAGES.md)。
 
-**目前已完成真正 Flutter Web 編譯與核心操作驗證。** 靜態分析零問題、31 項 Flutter 測試與 3 項輔助工具測試通過。Chromium 已驗證試玩、主題、體型面板、PNG 匯入、作品儲存／重新載入／重開、PNG 匯出與離線重載。[A01–A20 驗收表](docs/ACCEPTANCE.md) 區分通過與未測項目；iOS／Android 原生去背、實機多指操作與完整 P0 尚未全部驗證。
+**目前已完成真正 Flutter Web 編譯與核心操作驗證。** 靜態分析零問題、35 項 Flutter 測試與 7 項輔助工具測試通過。Chromium 已驗證試玩、主題、體型面板、PNG 匯入、作品儲存／重新載入／重開、完成圖／前後對比卡 PNG 匯出、五場景切換與離線重載／匯入／儲存／匯出。[A01–A20 驗收表](docs/ACCEPTANCE.md) 區分通過與未測項目；iOS／Android 原生去背、實機多指操作與完整 P0 尚未全部驗證。
 
 ## 啟動
 
@@ -53,14 +53,14 @@ flutter --suppress-analytics run -d <裝置ID>
 ## 功能與結構
 
 - 五階段入口、可略過的首次手勢引導與體型設定。
-- L1 時裝畫替身：身高、胸腰臀、肩寬獨立控制點；性別表現、膚色與臉型設定。
+- 寫實示範替身（局部網格變形）與 L1 時裝畫可切換，詳見 [視覺更新與限制](docs/VISUAL_REBUILD.md)：身高、胸腰臀、肩寬獨立控制點；性別表現、膚色與臉型設定。
 - 獨立前後髮／服裝／道具圖層，拖曳、縮放、旋轉、24px 吸附、圖層面板、精確調整、50 步復原／重做。
 - 22 個內建項目、5 個場景、1 組主題；自訂圖片與場景匯入。
 - 原圖／透明棋盤、裁切、手動擦除／原像素還原、類別與來源網址、PNG 輸出。
 - 草稿自動儲存與重試、可編輯作品、副本、重新命名、刪除、前後圖卡與 PNG 匯出。
 - 離線 worker、資源引用清理、資料清除與本機隱私。
 
-`lib/core/` 為模型／控制器／解碼；`lib/data/` 為 Repository；`lib/features/` 為畫布、修圖與頁面；`lib/painting/` 為原創繪製；`native/` 為平台去背。21 個模型／持久化測試與 10 個 widget 實例，包含三種尺寸、1.5 倍字體、實際拖曳／長按拖放、檔案關閉重開、解碼與透明像素還原。
+`lib/core/` 為模型／控制器／解碼；`lib/data/` 為 Repository；`lib/features/` 為畫布、修圖與頁面；`lib/painting/` 為原創繪製；`native/` 為平台去背。23 個模型／持久化測試與 12 個 widget 實例，包含三種尺寸、1.5 倍字體、實際拖曳／長按拖放、檔案關閉重開、解碼與透明像素還原。
 
 使用 Sembast 統一 IndexedDB 與原生儲存，圖片以 blob asset ID 引用；文件有 schemaVersion，依賴已有真正的 pubspec.lock。衣櫥刪除採封存，清理只移除草稿、作品、衣櫥均無引用的 blob。圖片與身材不主動上傳。Web 資料依 origin 隔離，清瀏覽器資料或解除安裝會影響作品，PNG 匯出不是可編輯備份。
 

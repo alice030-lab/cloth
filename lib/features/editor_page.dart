@@ -7,6 +7,7 @@ import 'package:share_plus/share_plus.dart';
 import '../core/controller.dart';
 import '../core/models.dart';
 import '../painting/art.dart';
+import '../painting/fashion.dart';
 import 'canvas_view.dart';
 import 'import_editor.dart';
 import 'panels.dart';
@@ -121,6 +122,25 @@ class _EditorPageState extends State<EditorPage> with WidgetsBindingObserver {
   }
 
   Future<Uint8List> capture() async {
+    await Future.wait([
+      if (photographic(e.doc.body)) FashionImages.load('avatar'),
+      if (e.doc.layers.any(
+        (l) => [
+          'blouse',
+          'cardigan_wine',
+          'hair_back',
+          'hair_front',
+        ].contains(l.itemId),
+      ))
+        FashionImages.load('extras'),
+      if (fashionScenes.containsKey(e.doc.scene)) FashionImages.load('scenes'),
+      if (e.doc.layers.any((l) => fashionSprites.containsKey(l.itemId)))
+        FashionImages.load('garments'),
+      if (e.doc.layers.any(
+        (l) => l.kind == Kind.shoes || l.kind == Kind.accessory,
+      ))
+        FashionImages.load('accessories'),
+    ]);
     await WidgetsBinding.instance.endOfFrame;
     final boundary =
         captureKey.currentContext?.findRenderObject() as RenderRepaintBoundary?;
@@ -480,7 +500,8 @@ class _EditorPageState extends State<EditorPage> with WidgetsBindingObserver {
               Text(
                 '穿搭預演',
                 style: TextStyle(
-                  fontSize: 27,
+                  fontSize: 29,
+                  fontFamily: 'ClothEditorial',
                   fontWeight: FontWeight.w500,
                   letterSpacing: 3,
                 ),
@@ -519,10 +540,22 @@ class _EditorPageState extends State<EditorPage> with WidgetsBindingObserver {
             alignment: Alignment.centerLeft,
             child: TextButton.icon(
               onPressed: scenePanel,
-              icon: const Icon(Icons.landscape_outlined, size: 18),
+              style: TextButton.styleFrom(
+                backgroundColor: const Color(0xffefe7de),
+                padding: const EdgeInsets.fromLTRB(4, 3, 10, 3),
+                shape: const StadiumBorder(),
+              ),
+              icon: ClipOval(
+                child: SizedBox(
+                  width: 34,
+                  height: 34,
+                  child: sceneBackground(e, e.doc.scene),
+                ),
+              ),
               label: Text(
                 scenes.where((s) => s.id == e.doc.scene).firstOrNull?.name ??
                     '我的場景',
+                style: const TextStyle(fontSize: 12, color: ink),
                 overflow: TextOverflow.ellipsis,
               ),
             ),
@@ -709,6 +742,7 @@ class _EditorPageState extends State<EditorPage> with WidgetsBindingObserver {
       onTap: () async {
         if (await confirm(context, '套用週末咖啡廳主題？', '替換內建穿搭與髮型，自訂匯入的單品會保留。可復原。')) {
           e.theme();
+          setState(() => stage = 3);
         }
       },
       borderRadius: BorderRadius.circular(15),
@@ -741,7 +775,12 @@ class _EditorPageState extends State<EditorPage> with WidgetsBindingObserver {
                 color: const Color(0xffeee9e3),
                 borderRadius: BorderRadius.circular(15),
               ),
-              child: ItemArt(editor: e, item: it),
+              child: Center(
+                child: AspectRatio(
+                  aspectRatio: it.naturalAspect,
+                  child: ItemArt(editor: e, item: it),
+                ),
+              ),
             ),
           ),
           const SizedBox(height: 4),
@@ -825,7 +864,11 @@ class _EditorPageState extends State<EditorPage> with WidgetsBindingObserver {
             icon: const Icon(Icons.auto_awesome, size: 18),
             label: Text(
               busy ? '正在處理…' : '完成穿搭',
-              style: const TextStyle(fontSize: 16, letterSpacing: 2),
+              style: const TextStyle(
+                fontSize: 18,
+                fontFamily: 'ClothEditorial',
+                letterSpacing: 2,
+              ),
             ),
           ),
         ),
@@ -887,7 +930,7 @@ class _EditorPageState extends State<EditorPage> with WidgetsBindingObserver {
                       onMenu: layerMenu,
                     ),
                   );
-                  final toolsHeight = b.maxHeight < 440 ? 148.0 : 174.0;
+                  final toolsHeight = b.maxHeight < 500 ? 148.0 : 166.0;
                   if (b.maxWidth > 760) {
                     return Padding(
                       padding: const EdgeInsets.symmetric(horizontal: 32),
@@ -912,7 +955,7 @@ class _EditorPageState extends State<EditorPage> with WidgetsBindingObserver {
                     children: [
                       Expanded(
                         child: Padding(
-                          padding: const EdgeInsets.symmetric(horizontal: 16),
+                          padding: const EdgeInsets.symmetric(horizontal: 10),
                           child: canvas,
                         ),
                       ),
@@ -1094,7 +1137,7 @@ class _ResultPageState extends State<ResultPage> {
                             ),
                             const SizedBox(height: 8),
                             AspectRatio(
-                              aspectRatio: 2 / 3,
+                              aspectRatio: 4 / 5,
                               child: widget.editor.doc.beforeAsset == null
                                   ? const ColoredBox(color: paper)
                                   : AssetImageView(
@@ -1116,7 +1159,7 @@ class _ResultPageState extends State<ResultPage> {
                             ),
                             const SizedBox(height: 8),
                             AspectRatio(
-                              aspectRatio: 2 / 3,
+                              aspectRatio: 4 / 5,
                               child: Image.memory(
                                 widget.after,
                                 fit: BoxFit.cover,

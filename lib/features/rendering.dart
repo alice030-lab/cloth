@@ -3,68 +3,67 @@ import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import '../core/controller.dart';
 import '../painting/art.dart';
+import '../painting/fashion.dart';
 
-/// Capture the starting avatar without temporarily mutating the live document
-/// (autosave must never observe an empty outfit during a before-image render).
+/// Capture the starting avatar without mutating the live editable document.
+/// The before and after canvases share the same 4:5 coordinate system.
 Future<Uint8List> renderBefore(EditorController editor) async {
-  const size = Size(800, 1200);
+  const size = Size(800, 1000);
+  final doc = editor.doc;
+  final avatar = photographic(doc.body)
+      ? await FashionImages.load('avatar')
+      : null;
   final recorder = ui.PictureRecorder();
   final canvas = Canvas(recorder);
-  final doc = editor.doc;
-  Uint8List? bytes;
-  if (doc.scene == 'cafe') {
-    bytes = (await rootBundle.load(
-      'assets/scenes/cafe.png',
-    )).buffer.asUint8List();
-  } else if (doc.scene.startsWith('scene_')) {
-    bytes = await editor.repo.asset(doc.scene);
+  ui.Image? ownedScene;
+  if (fashionScenes.containsKey(doc.scene)) {
+    final image = await FashionImages.load('scenes');
+    FashionScenePainter(
+      image,
+      fashionScenes[doc.scene]!,
+      doc.cropX,
+      doc.cropY,
+    ).paint(canvas, size);
+  } else {
+    final bytes = doc.scene == 'cafe'
+        ? (await rootBundle.load('assets/scenes/cafe.png')).buffer.asUint8List()
+        : await editor.repo.asset(doc.scene);
+    if (bytes != null) {
+      final codec = await ui.instantiateImageCodec(
+        bytes,
+        targetWidth: 1000,
+        allowUpscaling: false,
+      );
+      ownedScene = (await codec.getNextFrame()).image;
+      codec.dispose();
+      paintImage(
+        canvas: canvas,
+        rect: Offset.zero & size,
+        image: ownedScene,
+        fit: BoxFit.cover,
+        alignment: Alignment(doc.cropX, doc.cropY),
+      );
+    } else {
+      ScenePainter(
+        doc.scene,
+        cropX: doc.cropX,
+        cropY: doc.cropY,
+      ).paint(canvas, size);
+    }
   }
-  if (bytes != null) {
-    final codec = await ui.instantiateImageCodec(
-      bytes,
-      targetWidth: 1000,
-      allowUpscaling: false,
-    );
-    final image = (await codec.getNextFrame()).image;
-    codec.dispose();
-    paintImage(
-      canvas: canvas,
-      rect: Offset.zero & size,
-      image: image,
-      fit: BoxFit.cover,
-      alignment: Alignment(doc.cropX, doc.cropY),
-    );
-    // Picture retains its image until rasterization; release below.
-    canvas.save();
-    canvas.translate(size.width * .17, size.height * .025);
-    AvatarPainter(
-      doc.body,
-    ).paint(canvas, Size(size.width * .66, size.height * .94));
-    canvas.restore();
-    final picture = recorder.endRecording();
-    final rendered = await picture.toImage(800, 1200);
-    picture.dispose();
-    image.dispose();
-    final output = (await rendered.toByteData(
-      format: ui.ImageByteFormat.png,
-    ))!.buffer.asUint8List();
-    rendered.dispose();
-    return output;
-  }
-  ScenePainter(
-    doc.scene,
-    cropX: doc.cropX,
-    cropY: doc.cropY,
-  ).paint(canvas, size);
   canvas.save();
   canvas.translate(size.width * .17, size.height * .025);
-  AvatarPainter(
-    doc.body,
-  ).paint(canvas, Size(size.width * .66, size.height * .94));
+  final avatarSize = Size(size.width * .66, size.height * .94);
+  if (avatar != null) {
+    FashionAvatarPainter(doc.body, avatar).paint(canvas, avatarSize);
+  } else {
+    AvatarPainter(doc.body).paint(canvas, avatarSize);
+  }
   canvas.restore();
   final picture = recorder.endRecording();
-  final rendered = await picture.toImage(800, 1200);
+  final rendered = await picture.toImage(800, 1000);
   picture.dispose();
+  ownedScene?.dispose();
   final output = (await rendered.toByteData(
     format: ui.ImageByteFormat.png,
   ))!.buffer.asUint8List();

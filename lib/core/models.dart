@@ -48,7 +48,7 @@ extension KindInfo on Kind {
 class BodyProfile {
   double height, bust, waist, hip, shoulder;
   int skin;
-  String gender, face;
+  String gender, face, appearance;
   BodyProfile({
     this.height = 165,
     this.bust = 86,
@@ -58,6 +58,7 @@ class BodyProfile {
     this.skin = 2,
     this.gender = 'feminine',
     this.face = '柔和',
+    this.appearance = 'photo',
   });
   static const ranges = <String, (double, double)>{
     'height': (140, 200),
@@ -101,6 +102,7 @@ class BodyProfile {
     'skin': skin,
     'gender': gender,
     'face': face,
+    'appearance': appearance,
   };
   factory BodyProfile.fromJson(Map<String, dynamic> j) => BodyProfile(
     height: number(j['height'], 165),
@@ -111,6 +113,7 @@ class BodyProfile {
     skin: (j['skin'] as int? ?? 2).clamp(0, 7).toInt(),
     gender: j['gender'] as String? ?? 'feminine',
     face: j['face'] as String? ?? '柔和',
+    appearance: j['appearance'] as String? ?? 'photo',
   );
   BodyProfile copy() => BodyProfile.fromJson(toJson());
 }
@@ -149,8 +152,48 @@ class FigureGeometry {
     'handLeft': Offset(150 - hip - 23, 367),
     'handRight': Offset(150 + hip + 23, 367),
   };
+
+  /// Mesh deformation in normalized source photograph coordinates.
+  Offset deformPhotograph(double x, double y) {
+    double band(double center, double radius) =>
+        math.exp(-math.pow((y - center) / radius, 2));
+    final dx = x - .5;
+    final torso = math.exp(-math.pow(dx / .17, 6));
+    final change =
+        (body.bust - 86) * .0021 * band(.29, .055) +
+        (body.waist - 68) * .0022 * band(.415, .045) +
+        (body.hip - 92) * .0019 * band(.49, .065);
+    final shoulders = (body.shoulder - 38) * .003 * band(.215, .055);
+    final face = body.face == '俐落' ? -.10 * band(.14, .035) : 0.0;
+    final width = (1 + change * torso + shoulders + face).clamp(.65, 1.55);
+    final leg = ((y - .49) / .51).clamp(0.0, 1.0);
+    final height = (body.height - 165) * .0008 * leg;
+    return Offset(.5 + dx * width, y + height);
+  }
+
   Offset normalized(String name) {
     final a = anchors[name]!;
+    if (body.appearance == 'photo' && body.gender == 'feminine') {
+      final point = switch (name) {
+        'headTop' => const Offset(.5, .03),
+        'faceCenter' => const Offset(.5, .105),
+        'chin' => const Offset(.5, .163),
+        'neck' => const Offset(.5, .19),
+        'shoulderLeft' => const Offset(.33, .205),
+        'shoulderRight' => const Offset(.67, .205),
+        'shoulderCenter' => const Offset(.5, .205),
+        'chestCenter' => const Offset(.5, .29),
+        'waistCenter' => const Offset(.5, .415),
+        'hipCenter' => const Offset(.5, .49),
+        'kneeCenter' => const Offset(.5, .68),
+        'ankleCenter' => const Offset(.5, .915),
+        'handLeft' => const Offset(.30, .55),
+        'handRight' => const Offset(.70, .55),
+        _ => Offset(a.dx / 300, a.dy / 720),
+      };
+      final deformed = deformPhotograph(point.dx, point.dy);
+      return Offset(.5 + (deformed.dx - .5) * (0.82 / .66), deformed.dy);
+    }
     return Offset(a.dx / 300, a.dy / 720);
   }
 }
@@ -179,15 +222,35 @@ class Item {
     DateTime? createdAt,
   }) : createdAt = createdAt ?? DateTime.now();
   bool get custom => assetId != null;
-  double get naturalAspect => switch (shape) {
-    'jeans' || 'trousers' => .26,
-    'skirt' => .85,
-    'hair' => .63,
-    'shoes' => 2.3,
-    'cardigan' => .8,
-    'tee' || 'blouse' => 1.0,
-    _ => aspect,
-  };
+  double get naturalAspect {
+    if (assetId == null) {
+      final spriteAspect = switch (id) {
+        'tee_white' => 1.17,
+        'tee_rose' => 1.20,
+        'cardigan_blue' => .83,
+        'jeans' => .376,
+        'trousers' => .362,
+        'skirt' => .664,
+        'bag' || 'bag_black' => .77,
+        'blouse' => .81,
+        'cardigan_wine' => .847,
+        'hair_back' => .888,
+        'hair_front' => .791,
+        _ => null,
+      };
+      if (spriteAspect != null) return spriteAspect;
+    }
+    return switch (shape) {
+      'jeans' || 'trousers' => .26,
+      'skirt' => .85,
+      'hair' => .63,
+      'shoes' => 2.3,
+      'cardigan' => .8,
+      'tee' || 'blouse' => 1.0,
+      _ => aspect,
+    };
+  }
+
   Map<String, dynamic> toJson() => {
     'id': id,
     'name': name,

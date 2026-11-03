@@ -4,6 +4,7 @@ import 'package:flutter/services.dart';
 import '../core/controller.dart';
 import '../core/models.dart';
 import '../painting/art.dart';
+import '../painting/fashion.dart';
 
 class AssetImageView extends StatefulWidget {
   final EditorController editor;
@@ -75,10 +76,12 @@ class ItemArt extends StatelessWidget {
   });
   @override
   Widget build(BuildContext context) => item.assetId == null
-      ? CustomPaint(
-          painter: ItemPainter(item, activated: activated),
-          size: Size.infinite,
-        )
+      ? (fashionSprites.containsKey(item.id)
+            ? FashionGarment(item: item)
+            : CustomPaint(
+                painter: ItemPainter(item, activated: activated),
+                size: Size.infinite,
+              ))
       : AssetImageView(editor: editor, id: item.assetId!);
 }
 
@@ -101,7 +104,7 @@ class CanvasView extends StatelessWidget {
     builder: (context, box) {
       return Center(
         child: AspectRatio(
-          aspectRatio: 2 / 3,
+          aspectRatio: 4 / 5,
           child: ClipRRect(
             borderRadius: BorderRadius.circular(22),
             child: LayoutBuilder(
@@ -122,9 +125,7 @@ class CanvasView extends StatelessWidget {
                       width: size.width * .66,
                       height: size.height * .94,
                       child: IgnorePointer(
-                        child: CustomPaint(
-                          painter: AvatarPainter(editor.doc.body),
-                        ),
+                        child: FashionAvatar(body: editor.doc.body),
                       ),
                     ),
                     for (final l in editor.doc.sorted.where((l) => l.z >= 2))
@@ -320,9 +321,7 @@ Widget sceneBackground(EditorController e, String id) {
       errorBuilder: (c, err, s) => CustomPaint(painter: ScenePainter(id)),
     );
   }
-  return CustomPaint(
-    painter: ScenePainter(id, cropX: e.doc.cropX, cropY: e.doc.cropY),
-  );
+  return FashionScene(id, x: e.doc.cropX, y: e.doc.cropY);
 }
 
 class GestureLayer extends StatefulWidget {
@@ -375,7 +374,9 @@ class _GestureLayerState extends State<GestureLayer>
     label: widget.editor.item(widget.layer.itemId).name,
     button: true,
     child: GestureDetector(
-      behavior: HitTestBehavior.translucent,
+      behavior: fashionSprites.containsKey(widget.layer.itemId)
+          ? HitTestBehavior.deferToChild
+          : HitTestBehavior.translucent,
       onTap: () {
         widget.editor.tapLayer(widget.layer);
         activateProp();

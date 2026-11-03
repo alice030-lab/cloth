@@ -33,6 +33,41 @@ void main() {
     expect(() => b.set('waist', -1), throwsArgumentError);
     expect(b.waist, 68);
   });
+  test('photographic proportions deform locally and roundtrip appearance', () {
+    final base = FigureGeometry(BodyProfile());
+    final profile = BodyProfile(bust: 120);
+    final bust = FigureGeometry(profile);
+    expect(
+      bust.deformPhotograph(.62, .29).dx,
+      greaterThan(base.deformPhotograph(.62, .29).dx),
+    );
+    expect(
+      (bust.deformPhotograph(.62, .49).dx - base.deformPhotograph(.62, .49).dx)
+          .abs(),
+      lessThan(.00001),
+    );
+    expect(BodyProfile.fromJson(profile.toJson()).appearance, 'photo');
+    profile.appearance = 'illustration';
+    expect(BodyProfile.fromJson(profile.toJson()).appearance, 'illustration');
+  });
+  test('photographic mesh stays ordered at supported measurement extremes', () {
+    for (final upper in [false, true]) {
+      final profile = BodyProfile();
+      for (final entry in BodyProfile.ranges.entries) {
+        profile.set(entry.key, upper ? entry.value.$2 : entry.value.$1);
+      }
+      final geometry = FigureGeometry(profile);
+      for (var row = 0; row <= 80; row++) {
+        var previous = double.negativeInfinity;
+        for (var col = 0; col <= 32; col++) {
+          final point = geometry.deformPhotograph(col / 32, row / 80);
+          expect(point.dx.isFinite && point.dy.isFinite, isTrue);
+          expect(point.dx, greaterThan(previous));
+          previous = point.dx;
+        }
+      }
+    }
+  });
   test('chest waist hip control points vary independently', () {
     final b = BodyProfile(), g = FigureGeometry(BodyProfile());
     b.bust = 100;
@@ -253,7 +288,8 @@ void main() {
       expect(second.doc.toJson(), json);
       expect((await second.repo.outfits()).single.toJson(), json);
       second.add(second.item('patch'));
-      expect(second.doc.layers.length, 7);
+      expect(second.doc.layers.length, (json['layers'] as List).length + 1);
+      expect(second.doc.layers.last.itemId, 'patch');
       await second.flush();
       second.dispose();
       await db.close();

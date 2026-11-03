@@ -4,6 +4,7 @@ import '../core/images.dart';
 import '../core/controller.dart';
 import '../core/models.dart';
 import '../painting/art.dart';
+import '../painting/fashion.dart';
 import 'canvas_view.dart';
 import 'import_editor.dart';
 
@@ -123,16 +124,31 @@ class _BodyPanelState extends State<BodyPanel> {
             children: [
               Center(
                 child: SizedBox(
-                  width: 100,
+                  width: 120,
                   height: 230,
-                  child: CustomPaint(painter: AvatarPainter(body)),
+                  child: FashionAvatar(body: body),
                 ),
               ),
               const Center(
                 child: Text(
-                  'L1 時裝畫 · 身材比例預覽',
+                  '身材比例預覽 · 非尺寸合身預測',
                   style: TextStyle(fontSize: 12, color: wine),
                 ),
+              ),
+              const SizedBox(height: 18),
+              SegmentedButton<String>(
+                segments: const [
+                  ButtonSegment(value: 'photo', label: Text('寫實素材')),
+                  ButtonSegment(value: 'illustration', label: Text('時裝插畫')),
+                ],
+                selected: {body.appearance},
+                onSelectionChanged: (value) =>
+                    setState(() => body.appearance = value.first),
+              ),
+              const SizedBox(height: 8),
+              const Text(
+                '寫實素材目前提供女性外觀；其他性別表現使用可變形插畫。照片為內建示範人物，不代表你的長相。',
+                style: TextStyle(fontSize: 12, color: Color(0xff746660)),
               ),
               const SizedBox(height: 18),
               DropdownButtonFormField<String>(
@@ -270,7 +286,7 @@ class _BodyPanelState extends State<BodyPanel> {
               ),
               const SizedBox(height: 16),
               const Text(
-                '數值只用於插畫比例，不是尺寸／合身預測。超出目前模型支援範圍時會提示，不會默默更改。',
+                '數值只用於視覺比例，不是尺寸／合身預測。超出目前模型支援範圍時會提示，不會默默更改。',
                 style: TextStyle(fontSize: 12, color: Color(0xff746660)),
               ),
             ],
@@ -351,9 +367,7 @@ class _ScenePanelState extends State<ScenePanel> {
         alignment: Alignment(x, y),
       );
     }
-    return CustomPaint(
-      painter: ScenePainter(scene, cropX: x, cropY: y),
-    );
+    return FashionScene(scene, x: x, y: y);
   }
 
   @override

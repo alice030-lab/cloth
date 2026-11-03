@@ -49,6 +49,9 @@ class EditorController extends ChangeNotifier {
       final j = await repo.draft();
       if (j != null) {
         doc = CanvasDocument.fromJson(j);
+        for (final layer in doc.layers.where((l) => l.snappedTo != null)) {
+          snap(layer);
+        }
       }
     } catch (_) {
       loadError = '草稿無法讀取，原始資料仍保留。請先備份資料，再建立新作品。';
@@ -151,7 +154,13 @@ class EditorController extends ChangeNotifier {
     return Offset(.17 + a.dx * .66, .025 + a.dy * .94);
   }
 
-  double shoulderWidth() => FigureGeometry(doc.body).shoulder * 2 / 300 * .66;
+  double shoulderWidth() {
+    final geometry = FigureGeometry(doc.body);
+    return (geometry.normalized('shoulderRight').dx -
+            geometry.normalized('shoulderLeft').dx) *
+        .66;
+  }
+
   void snap(CanvasLayer l) {
     final a = l.kind.anchor;
     if (a == null) {
@@ -164,18 +173,24 @@ class EditorController extends ChangeNotifier {
     final it = item(l.itemId);
     if (l.kind == Kind.bottom) {
       l.scale = it.shape == 'skirt'
-          ? .37
-          : (FigureGeometry(doc.body).legEnd - 272) / 720;
+          ? .43
+          : FigureGeometry(doc.body).normalized('ankleCenter').dy -
+                FigureGeometry(doc.body).normalized('waistCenter').dy;
     } else if (l.kind == Kind.shoes) {
       l.scale = .075;
     } else if (l.kind == Kind.hairBack) {
       l.scale = .30;
     } else if (l.kind == Kind.hairFront) {
-      l.scale = .15;
+      l.scale = .20;
     } else {
-      l.scale = (shoulderWidth() * l.kind.widthRatio / it.naturalAspect * .75)
-          .clamp(.03, 2)
-          .toDouble();
+      l.scale =
+          (shoulderWidth() *
+                  l.kind.widthRatio /
+                  it.naturalAspect *
+                  (4 / 5) /
+                  .94)
+              .clamp(.03, 2)
+              .toDouble();
     }
   }
 
@@ -276,8 +291,10 @@ class EditorController extends ChangeNotifier {
     doc.scene = 'cafe';
     doc.layers.removeWhere((l) => !item(l.itemId).custom);
     for (final id in [
-      'hair_back',
-      'hair_front',
+      if (doc.body.appearance != 'photo' || doc.body.gender != 'feminine')
+        'hair_back',
+      if (doc.body.appearance != 'photo' || doc.body.gender != 'feminine')
+        'hair_front',
       'tee_white',
       'jeans',
       'shoes_wine',

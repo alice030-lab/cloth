@@ -2,7 +2,7 @@
 
 目標 repository：alice030-lab/cloth，部署分支 main，預定自訂網域 app.uslinkyou.com。
 
-目前 Pages Custom domain 已是 app.uslinkyou.com，根路徑部署成功。部署紀錄 https://github.com/alice030-lab/cloth/actions/runs/40470732019 的公開首頁與 JavaScript 檢查通過（目前 HTTP）。使用者在 Vercel 顯示的 app CNAME 指向 alice030-lab.github.io. 正確；GitHub DNS health API 受整合權限限制，未宣稱其 DNS 檢查已通過。目前憑證 state=new，https_enforced=false，需等待憑證準備並由帳號持有人啟用 HTTPS。
+初次設定時確認 Pages Custom domain 已是 app.uslinkyou.com，根路徑部署成功。部署紀錄 https://github.com/alice030-lab/cloth/actions/runs/40470732019 的公開首頁與 JavaScript 檢查通過（目前 HTTP）。使用者在 Vercel 顯示的 app CNAME 指向 alice030-lab.github.io. 正確；GitHub DNS health API 受整合權限限制，未宣稱其 DNS 檢查已通過。初次查詢時憑證 state=new、https_enforced=false；後續狀態應以 GitHub Pages 設定頁為準。
 
 ## 已加入的程式設定
 
