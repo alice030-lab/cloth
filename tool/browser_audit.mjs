@@ -12,7 +12,7 @@ try {
  const placeholder=page.locator('flt-semantics-placeholder');if(await placeholder.count())await placeholder.evaluate(e=>e.click());
  await page.getByRole('button',{name:'先試玩',exact:true}).press('Enter');
  await page.getByText('咖啡廳主題',{exact:true}).click();await page.getByRole('button',{name:'確認',exact:true}).press('Enter');
- await page.getByLabel(/素材載入中/).first().waitFor({state:'detached'});
+ while(await page.getByLabel(/素材載入中/).count()){await page.getByLabel(/素材載入中/).first().waitFor({state:'detached'});}
  const shirt=page.getByRole('button',{name:'奶油白短版上衣',exact:true}).first();await shirt.click();
  const before=await shirt.boundingBox();await page.screenshot({path:`docs/audit/${baseline?'before':'after'}-selection.png`});
  let start;

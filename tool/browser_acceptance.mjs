@@ -20,7 +20,7 @@ try{
   await page.getByRole('button',{name:/性別表現/}).press('Enter');
   await named(label).click();await press('套用');
   await page.getByRole('heading',{name:'我的替身',exact:true}).waitFor({state:'detached'});
-  await page.getByLabel(/素材載入中/).first().waitFor({state:'detached'});
+  while(await page.getByLabel(/素材載入中/).count()){await page.getByLabel(/素材載入中/).first().waitFor({state:'detached'});}
   await page.screenshot({path:`docs/screenshots/12-avatar-${value}.png`});
  }
  await press('完成穿搭');
