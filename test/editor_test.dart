@@ -143,7 +143,7 @@ void main() {
     final l = e.doc.layers.single;
     expect(l.z, 5);
     expect(l.snappedTo, 'shoulderCenter');
-    expect(Offset(l.x, l.y), e.anchor('shoulderCenter'));
+    expect(Offset(l.x, l.y), e.attachmentPoint(l));
   });
   test('drag-drop starts at free location', () {
     e.add(e.item('tee_white'), at: const Offset(.2, .3));
@@ -152,7 +152,8 @@ void main() {
   });
   test('snap uses logical pixel distance, free position remains outside', () {
     e.add(e.item('tee_white'));
-    final l = e.doc.layers.single, a = e.anchor('shoulderCenter');
+    final l = e.doc.layers.single;
+    final a = e.attachmentPoint(l);
     l.x = a.dx + 23 / 400;
     l.snappedTo = null;
     e.finishGesture(l, const Size(400, 600));
@@ -171,6 +172,102 @@ void main() {
     expect(e.doc.layers.first.scale, greaterThan(old));
     expect(e.doc.layers.last.x, .2);
     expect(e.doc.layers.last.y, .3);
+  });
+  test('all wearable defaults fit uniformly for every avatar gender', () {
+    for (final gender in ['feminine', 'masculine', 'neutral']) {
+      e.body(e.doc.body.copy()..gender = gender);
+      for (final it in e.items.where((it) => it.kind.anchor != null)) {
+        e.add(it);
+        final layer = e.doc.layers.last;
+        expect(layer.widthScale, 1, reason: '$gender ${it.id}');
+        expect(Offset(layer.x, layer.y), e.attachmentPoint(layer));
+        expect(layer.scale.isFinite && layer.scale > 0, true);
+      }
+    }
+  });
+  test('near-body drop attaches but distant drop stays free', () {
+    e.add(e.item('tee_white'));
+    final point = e.attachmentPoint(e.doc.layers.last);
+    e.add(e.item('tee_rose'), at: point + const Offset(.01, .01));
+    expect(e.doc.layers.last.snappedTo, 'shoulderCenter');
+    expect(
+      Offset(e.doc.layers.last.x, e.doc.layers.last.y),
+      e.attachmentPoint(e.doc.layers.last),
+    );
+  });
+  test('hair translates scales and rotates together in one undo', () {
+    e.add(e.item('hair_front'));
+    e.checkpoint();
+    final front = e.doc.layers.last;
+    final before = front.copy();
+    front.x = .6;
+    front.y = .13;
+    front.scale = .4;
+    front.rotation = .2;
+    front.snappedTo = null;
+    e.liveUpdate(front);
+    final back = e.doc.layers.first;
+    expect((back.x - front.x).abs(), lessThan(.01));
+    expect(back.y, greaterThan(front.y));
+    expect(back.scale, front.scale);
+    expect(back.rotation, front.rotation);
+    e.finishGesture(front, const Size(400, 500));
+    e.undo();
+    for (final layer in e.doc.layers) {
+      expect(layer.x, before.x);
+      expect(layer.scale, before.scale);
+      expect(Offset(layer.x, layer.y), e.attachmentPoint(layer));
+    }
+  });
+  test('fit all repairs old free wearables and undo restores user edits', () {
+    e.add(e.item('bag'));
+    final layer = e.doc.layers.single;
+    layer.x = .2;
+    layer.y = .7;
+    layer.widthScale = 1.35;
+    layer.rotation = .6;
+    layer.snappedTo = null;
+    e.fitAll();
+    expect(layer.widthScale, 1);
+    expect(layer.rotation, 0);
+    expect(layer.snappedTo, 'shoulderRight');
+    e.undo();
+    expect(e.doc.layers.single.x, .2);
+    expect(e.doc.layers.single.widthScale, 1.35);
+  });
+  test('imported aspect is preserved regardless of shape label', () {
+    final item = Item(
+      id: 'import',
+      name: 'import',
+      kind: Kind.bottom,
+      shape: 'jeans',
+      assetId: 'asset',
+      aspect: .71,
+    );
+    expect(item.naturalAspect, .71);
+  });
+  test('pants waistband follows waist without stretching source pixels', () {
+    e.add(e.item('jeans'));
+    final layer = e.doc.layers.last;
+    final aspect = layer.fittedAspect!;
+    expect(aspect, greaterThan(e.item('jeans').naturalAspect));
+    expect(layer.copy().fittedAspect, aspect);
+    e.body(e.doc.body.copy()..waist = 100);
+    expect(layer.fittedAspect, greaterThan(aspect));
+    final saved = CanvasDocument.fromJson(e.doc.toJson());
+    expect(saved.layers.last.fittedAspect, layer.fittedAspect);
+  });
+  test('legacy accessory center migrates once to top registration', () {
+    final json = CanvasLayer(
+      id: 'old',
+      itemId: 'bag',
+      kind: Kind.accessory,
+      y: .4,
+      scale: .2,
+    ).toJson()..remove('fitted_aspect');
+    final migrated = CanvasLayer.fromJson(json);
+    expect(migrated.y, closeTo(.4 - .2 * .94 / 2, .00001));
+    expect(migrated.copy().y, migrated.y);
   });
   test('hair pair remains split across body and is removed as pair', () {
     e.add(e.item('hair_front'));

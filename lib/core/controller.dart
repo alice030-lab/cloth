@@ -152,7 +152,11 @@ class EditorController extends ChangeNotifier {
     notifyListeners();
   }
 
-  void liveUpdate() => notifyListeners();
+  void liveUpdate([CanvasLayer? layer]) {
+    if (layer != null) syncHair(layer);
+    notifyListeners();
+  }
+
   void tapLayer(CanvasLayer layer) {
     final front = doc.layers
         .where((other) => other.z == layer.z)
@@ -177,44 +181,97 @@ class EditorController extends ChangeNotifier {
         .66;
   }
 
+  /// The registration point belongs to the artwork, not its bounding-box top.
+  Offset attachmentPoint(CanvasLayer l) {
+    final a = l.kind.anchor;
+    if (a == null) return Offset(l.x, l.y);
+    final p = anchor(a);
+    final inset = switch (l.kind) {
+      Kind.top || Kind.outer => .08,
+      Kind.shoes => .16,
+      Kind.hairFront => .08,
+      _ => 0.0,
+    };
+    return Offset(p.dx, p.dy - l.scale * .94 * inset);
+  }
+
   void snap(CanvasLayer l) {
     final a = l.kind.anchor;
-    if (a == null) {
-      return;
-    }
-    final p = anchor(a);
-    l.x = p.dx;
-    l.y = p.dy;
-    l.snappedTo = a;
+    if (a == null) return;
     final it = item(l.itemId);
-    l.widthScale =
-        doc.body.appearance == 'photo' && doc.body.gender == 'masculine'
-        ? (l.kind == Kind.bottom
-              ? 1.35
-              : l.kind == Kind.shoes
-              ? 1.18
-              : 1)
-        : 1;
+    // Never stretch an auto-fitted sprite horizontally. Width and height share
+    // one scale, including imported images and all avatar presentations.
+    l.widthScale = 1;
+    l.fittedAspect = null;
+    l.rotation = 0;
+    final geometry = FigureGeometry(doc.body);
     if (l.kind == Kind.bottom) {
       l.scale = it.shape == 'skirt'
           ? .43
-          : FigureGeometry(doc.body).normalized('ankleCenter').dy -
-                FigureGeometry(doc.body).normalized('waistCenter').dy;
+          : geometry.normalized('ankleCenter').dy -
+                geometry.normalized('waistCenter').dy;
     } else if (l.kind == Kind.shoes) {
       l.scale = .075;
-    } else if (l.kind == Kind.hairBack) {
-      l.scale = .30;
-    } else if (l.kind == Kind.hairFront) {
+    } else if (l.kind == Kind.hairBack || l.kind == Kind.hairFront) {
+      // Both cells contain a whole hairstyle. The front cell has an inset
+      // face opening; registering it at its bounding-box crown hides the eyes.
       l.scale = .20;
+    } else if (l.kind == Kind.accessory) {
+      l.scale = .24;
     } else {
+      final shoulderSpan = switch (it.id) {
+        'tee_white' || 'tee_rose' => .72,
+        'blouse' || 'cardigan_blue' || 'cardigan_wine' => .68,
+        _ => 1 / l.kind.widthRatio,
+      };
       l.scale =
-          (shoulderWidth() *
-                  l.kind.widthRatio /
-                  it.naturalAspect *
-                  (4 / 5) /
-                  .94)
+          (shoulderWidth() / shoulderSpan / it.naturalAspect * (4 / 5) / .94)
               .clamp(.03, 2)
               .toDouble();
+    }
+    if (!it.custom && (it.id == 'jeans' || it.id == 'trousers')) {
+      double waistSpan;
+      if (doc.body.appearance == 'photo') {
+        final y = doc.body.gender == 'feminine' ? .415 : .47;
+        final left = geometry.deformPhotograph(.33, y);
+        final right = geometry.deformPhotograph(.67, y);
+        waistSpan = (right.dx - left.dx) * .82;
+      } else {
+        waistSpan = geometry.waist * 2 / 300 * .66;
+      }
+      // Match the waistband and leg length, covering the target rectangle with
+      // the source uniformly. Excess hem is cropped, never squashed sideways.
+      final height = l.scale * .94;
+      l.fittedAspect = math.max(
+        it.naturalAspect,
+        waistSpan / .75 * .8 / height,
+      );
+    }
+    final p = attachmentPoint(l);
+    l.x = p.dx;
+    l.y = p.dy;
+    l.snappedTo = a;
+    syncHair(l);
+  }
+
+  /// Treat the front and back of the built-in hairstyle as one transform.
+  void syncHair(CanvasLayer source) {
+    if (source.itemId != 'hair_front' && source.itemId != 'hair_back') return;
+    for (final other in doc.layers) {
+      if (other.id == source.id ||
+          (other.itemId != 'hair_front' && other.itemId != 'hair_back')) {
+        continue;
+      }
+      final inset =
+          (source.kind == Kind.hairFront ? .08 : 0) -
+          (other.kind == Kind.hairFront ? .08 : 0);
+      final offset = inset * source.scale * .94;
+      other.x = source.x - math.sin(source.rotation) * offset * 1.25;
+      other.y = source.y + math.cos(source.rotation) * offset;
+      other.scale = source.scale;
+      other.rotation = source.rotation;
+      other.widthScale = source.widthScale;
+      other.snappedTo = source.snappedTo;
     }
   }
 
@@ -270,9 +327,16 @@ class EditorController extends ChangeNotifier {
         );
         snap(l);
         if (at != null) {
-          l.x = at.dx;
-          l.y = at.dy;
-          l.snappedTo = null;
+          final target = attachmentPoint(l);
+          final nearAttachment =
+              i.kind.anchor != null &&
+              Offset((at.dx - target.dx) * .8, at.dy - target.dy).distance <
+                  .10;
+          if (!nearAttachment) {
+            l.x = at.dx;
+            l.y = at.dy;
+            l.snappedTo = null;
+          }
         } else if (i.kind.anchor == null) {
           l.x = i.id == 'patch' ? face.dx - .025 : .68;
           l.y = i.id == 'patch' ? face.dy + .012 : .48;
@@ -283,6 +347,7 @@ class EditorController extends ChangeNotifier {
           careEvent++;
         }
         doc.layers.add(l);
+        syncHair(l);
         selected = applyCare ? null : l.id;
       }
     });
@@ -315,7 +380,7 @@ class EditorController extends ChangeNotifier {
     doc.afterAsset = null;
     final a = l.kind.anchor;
     if (a != null) {
-      final target = anchor(a);
+      final target = attachmentPoint(l);
       final d = Offset(
         (l.x - target.dx) * size.width,
         (l.y - target.dy) * size.height,
@@ -328,8 +393,16 @@ class EditorController extends ChangeNotifier {
         l.snappedTo = a;
       }
     }
+    syncHair(l);
     changed();
   }
+
+  void fitAll() => change(() {
+    for (final layer in doc.layers) {
+      if (layer.kind.anchor != null) snap(layer);
+    }
+    selected = null;
+  });
 
   void body(BodyProfile b) => change(() {
     doc.body = b;
@@ -363,11 +436,6 @@ class EditorController extends ChangeNotifier {
         order: doc.layers.length + 1,
       );
       snap(l);
-      if (it.kind == Kind.accessory) {
-        l.x = .67;
-        l.y = .39;
-        l.scale = .18;
-      }
       doc.layers.add(l);
     }
     selected = null;

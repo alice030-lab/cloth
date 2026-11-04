@@ -39,6 +39,7 @@ extension KindInfo on Kind {
     Kind.shoes => 'ankleCenter',
     Kind.hairBack || Kind.hairFront => 'headTop',
     Kind.expression => 'faceCenter',
+    Kind.accessory => 'shoulderRight',
     _ => null,
   };
   double get widthRatio =>
@@ -177,8 +178,8 @@ class FigureGeometry {
     final a = anchors[name]!;
     if (body.appearance == 'photo') {
       final point = switch (name) {
-        'headTop' => const Offset(.5, .03),
-        'faceCenter' => const Offset(.5, .105),
+        'headTop' => Offset(.5, body.gender == 'masculine' ? .006 : .03),
+        'faceCenter' => Offset(.5, body.gender == 'masculine' ? .09 : .105),
         'chin' => const Offset(.5, .163),
         'neck' => const Offset(.5, .19),
         'shoulderLeft' => Offset(body.gender == 'masculine' ? .29 : .33, .205),
@@ -192,10 +193,10 @@ class FigureGeometry {
               : .205,
         ),
         'chestCenter' => const Offset(.5, .29),
-        'waistCenter' => const Offset(.5, .415),
+        'waistCenter' => Offset(.5, body.gender == 'feminine' ? .415 : .47),
         'hipCenter' => const Offset(.5, .49),
         'kneeCenter' => const Offset(.5, .68),
-        'ankleCenter' => const Offset(.5, .915),
+        'ankleCenter' => Offset(.5, body.gender == 'feminine' ? .915 : .94),
         'handLeft' => const Offset(.30, .55),
         'handRight' => const Offset(.70, .55),
         _ => Offset(a.dx / 300, a.dy / 720),
@@ -232,6 +233,7 @@ class Item {
   }) : createdAt = createdAt ?? DateTime.now();
   bool get custom => assetId != null;
   double get naturalAspect {
+    if (assetId != null) return aspect;
     if (assetId == null) {
       final spriteAspect = switch (id) {
         'tee_white' => 1.17,
@@ -291,6 +293,7 @@ class CanvasLayer {
   final String id, itemId;
   final Kind kind;
   double x, y, scale, rotation, widthScale;
+  double? fittedAspect;
   String? snappedTo;
   int order;
   bool activated;
@@ -302,6 +305,7 @@ class CanvasLayer {
     this.y = .4,
     this.scale = .25,
     this.widthScale = 1,
+    this.fittedAspect,
     this.rotation = 0,
     this.snappedTo,
     this.order = 0,
@@ -317,6 +321,7 @@ class CanvasLayer {
     'y': y,
     'scale': scale,
     'width_scale': widthScale,
+    'fitted_aspect': fittedAspect,
     'rotation': rotation,
     'snapped_to': snappedTo,
     'order': order,
@@ -327,9 +332,16 @@ class CanvasLayer {
     itemId: j['item_id'],
     kind: Kind.values.byName(j['kind']),
     x: number(j['x'], .5),
-    y: number(j['y'], .4),
+    y:
+        number(j['y'], .4) -
+        (j['kind'] == 'accessory' && !j.containsKey('fitted_aspect')
+            ? number(j['scale'], .25) * .94 / 2
+            : 0),
     scale: number(j['scale'], .25).clamp(.03, 2).toDouble(),
     widthScale: number(j['width_scale'], 1).clamp(.5, 2.5).toDouble(),
+    fittedAspect: j['fitted_aspect'] is num
+        ? number(j['fitted_aspect'], 1).clamp(.05, 10).toDouble()
+        : null,
     rotation: number(j['rotation']),
     snappedTo: j['snapped_to'],
     order: j['order'] ?? 0,

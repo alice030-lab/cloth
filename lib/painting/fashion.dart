@@ -188,7 +188,12 @@ class FashionGarment extends StatelessWidget {
     mask: FashionImages.masks[sheet],
     region: fashionSprites[item.id]!,
     child: CustomPaint(
-      painter: FashionGarmentPainter(image, fashionSprites[item.id]!),
+      painter: FashionGarmentPainter(
+        image,
+        fashionSprites[item.id]!,
+        splitShoes: item.kind == Kind.shoes,
+        coverFromWaist: item.id == 'jeans' || item.id == 'trousers',
+      ),
     ),
   );
   @override
@@ -268,7 +273,13 @@ class SpriteHitBox extends RenderProxyBox {
 class FashionGarmentPainter extends CustomPainter {
   final ui.Image image;
   final Rect region;
-  FashionGarmentPainter(this.image, this.region);
+  final bool splitShoes, coverFromWaist;
+  FashionGarmentPainter(
+    this.image,
+    this.region, {
+    this.splitShoes = false,
+    this.coverFromWaist = false,
+  });
   @override
   void paint(Canvas canvas, Size size) {
     final source = Rect.fromLTRB(
@@ -277,16 +288,43 @@ class FashionGarmentPainter extends CustomPainter {
       region.right * image.width,
       region.bottom * image.height,
     );
-    canvas.drawImageRect(
-      image,
-      source,
-      Offset.zero & size,
-      Paint()..filterQuality = FilterQuality.medium,
-    );
+    final paint = Paint()..filterQuality = FilterQuality.medium;
+    if (splitShoes) {
+      final half = source.width / 2;
+      final width = size.height * half / source.height;
+      for (var side = 0; side < 2; side++) {
+        canvas.drawImageRect(
+          image,
+          Rect.fromLTWH(
+            source.left + side * half,
+            source.top,
+            half,
+            source.height,
+          ),
+          Rect.fromLTWH(
+            side == 0 ? 0 : size.width - width,
+            0,
+            width,
+            size.height,
+          ),
+          paint,
+        );
+      }
+    } else if (coverFromWaist) {
+      final fitted = applyBoxFit(BoxFit.cover, source.size, size);
+      final crop = Alignment.topCenter.inscribe(fitted.source, source);
+      canvas.drawImageRect(image, crop, Offset.zero & size, paint);
+    } else {
+      canvas.drawImageRect(image, source, Offset.zero & size, paint);
+    }
   }
 
   @override
-  bool shouldRepaint(FashionGarmentPainter old) => old.region != region;
+  bool shouldRepaint(FashionGarmentPainter old) =>
+      old.region != region ||
+      old.image != image ||
+      old.splitShoes != splitShoes ||
+      old.coverFromWaist != coverFromWaist;
 }
 
 const fashionScenes = <String, Rect>{

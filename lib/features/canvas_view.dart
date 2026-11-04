@@ -477,7 +477,7 @@ class _GestureLayerState extends State<GestureLayer>
         l.scale = (startScale * d.scale).clamp(.03, 2).toDouble();
         l.rotation = startRotation + d.rotation;
         l.snappedTo = null;
-        widget.editor.liveUpdate();
+        widget.editor.liveUpdate(l);
       },
       onScaleEnd: (d) {
         if (!moving) return;
@@ -624,7 +624,16 @@ class CareFeedbackPainter extends CustomPainter {
 Rect layerRect(EditorController editor, CanvasLayer l, Size s) {
   final it = editor.item(l.itemId);
   final h = l.scale * s.height * .94;
-  final w = h * it.naturalAspect * l.widthScale;
+  var w = h * (l.fittedAspect ?? it.naturalAspect) * l.widthScale;
+  if (l.kind == Kind.shoes && !it.custom && l.snappedTo != null) {
+    // Spread a pair to the actual stance without stretching either shoe.
+    final span = switch (editor.doc.body.gender) {
+      'masculine' => .34,
+      'neutral' => .31,
+      _ => .26,
+    };
+    w = math.max(w, span * .82 * s.width);
+  }
   final centerAligned = l.kind.anchor == null;
   return Rect.fromLTWH(
     l.x * s.width - w / 2,
@@ -746,7 +755,7 @@ class _SelectionControlsState extends State<SelectionControls> {
                           (2 * math.pi) -
                       math.pi;
                   layer.snappedTo = null;
-                  widget.editor.liveUpdate();
+                  widget.editor.liveUpdate(layer);
                 },
                 onPanEnd: (_) {
                   finishOperation();

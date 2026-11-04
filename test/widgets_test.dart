@@ -230,7 +230,7 @@ void main() {
     final resized = editor.doc.layers.single;
     expect(resized.scale, greaterThan(original.scale));
     expect(resized.snappedTo, 'shoulderCenter');
-    expect(Offset(resized.x, resized.y), editor.anchor('shoulderCenter'));
+    expect(Offset(resized.x, resized.y), editor.attachmentPoint(resized));
     editor.undo();
     expect(editor.doc.layers.single.toJson(), original.toJson());
     await drain(tester, editor.flush());

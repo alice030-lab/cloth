@@ -19,7 +19,7 @@
 | 命令／檢查 | 結果 |
 |---|---|
 | flutter --suppress-analytics analyze | 通過，No issues found |
-| flutter --suppress-analytics test --reporter expanded | 47 項通過：26 模型／持久化、17 編輯器 widget、4 修圖介面 |
+| flutter --suppress-analytics test --reporter expanded | 54 項通過：33 模型／持久化、17 編輯器 widget、4 修圖介面 |
 | flutter --suppress-analytics build web --release --no-web-resources-cdn | 通過；JavaScript release 與 Wasm dry run 成功，未做 Wasm runtime 驗收 |
 | python3 tool/generate_offline_worker.py | 成功，48 個同來源資源 |
 | python3 -m unittest discover -s tool -p test_tooling.py -v | 3 個輔助腳本測試通過 |
@@ -97,4 +97,8 @@
 
 ## 2026-11-04 操作稽核
 
-詳見 AUDIT_2026-11-04.md。新增實際控制點、選取工具列、即時單擊、清除／自動儲存互斥、更新保存保護與正面鞋素材；目前 47 項 Flutter 測試及 7 項工具測試通過。更新提示在表單開啟或手勢／匯入／儲存進行中會保留目前視窗，沒有強制重載。修正版本 5f4f21a 的正式 Pages run 41758478608 已成功，包含公開 index／main.dart.js 取得檢查；互動測試使用本機同版 release。
+詳見 AUDIT_2026-11-04.md。新增實際控制點、選取工具列、即時單擊、清除／自動儲存互斥、更新保存保護與正面鞋素材；目前 54 項 Flutter 測試及 7 項工具測試通過。更新提示在表單開啟或手勢／匯入／儲存進行中會保留目前視窗，沒有強制重載。修正版本 5f4f21a 的正式 Pages run 41758478608 已成功，包含公開 index／main.dart.js 取得檢查；互動測試使用本機同版 release。
+
+### 自動貼合修正
+
+參見 FITTING_2026-11-04.md；新增前後髮同步、素材穿戴點、三種人物錨點、內建褲裝等比覆蓋與站距分鞋，以及可復原的整體重新貼合。測試總數更新為 53，布料模擬／真人合身仍不列通過。

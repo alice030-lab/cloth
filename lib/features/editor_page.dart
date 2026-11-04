@@ -361,6 +361,7 @@ class _EditorPageState extends State<EditorPage> with WidgetsBindingObserver {
         l.widthScale = value.widthScale;
         l.rotation = value.rotation;
         l.snappedTo = null;
+        e.syncHair(l);
       });
     }
   }
@@ -569,6 +570,16 @@ class _EditorPageState extends State<EditorPage> with WidgetsBindingObserver {
               ),
             ),
           ),
+        ),
+        IconButton(
+          tooltip: '自動貼合全部穿戴物',
+          onPressed: busy
+              ? null
+              : () {
+                  e.fitAll();
+                  message('已等比例貼合穿戴物，可按復原還原');
+                },
+          icon: const Icon(Icons.fit_screen_outlined),
         ),
         OutlinedButton.icon(
           onPressed: bodyPanel,
