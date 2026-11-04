@@ -624,16 +624,7 @@ class CareFeedbackPainter extends CustomPainter {
 Rect layerRect(EditorController editor, CanvasLayer l, Size s) {
   final it = editor.item(l.itemId);
   final h = l.scale * s.height * .94;
-  var w = h * (l.fittedAspect ?? it.naturalAspect) * l.widthScale;
-  if (l.kind == Kind.shoes && !it.custom && l.snappedTo != null) {
-    // Spread a pair to the actual stance without stretching either shoe.
-    final span = switch (editor.doc.body.gender) {
-      'masculine' => .34,
-      'neutral' => .31,
-      _ => .26,
-    };
-    w = math.max(w, span * .82 * s.width);
-  }
+  final w = h * (l.fittedAspect ?? it.naturalAspect) * l.widthScale;
   final centerAligned = l.kind.anchor == null;
   return Rect.fromLTWH(
     l.x * s.width - w / 2,

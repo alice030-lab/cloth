@@ -269,6 +269,24 @@ void main() {
     expect(migrated.y, closeTo(.4 - .2 * .94 / 2, .00001));
     expect(migrated.copy().y, migrated.y);
   });
+  test(
+    'shoe stance survives detaching resizing and saving without stretching',
+    () {
+      e.body(e.doc.body.copy()..gender = 'masculine');
+      e.add(e.item('shoes_wine'));
+      final layer = e.doc.layers.last;
+      final fitted = layer.fittedAspect;
+      expect(fitted, greaterThan(e.item('shoes_wine').naturalAspect));
+      layer.snappedTo = null;
+      layer.x = .2;
+      layer.y = .3;
+      layer.scale *= 1.2;
+      e.finishGesture(layer, const Size(400, 500));
+      expect(layer.fittedAspect, fitted);
+      expect(layer.widthScale, 1);
+      expect(layer.copy().fittedAspect, fitted);
+    },
+  );
   test('hair pair remains split across body and is removed as pair', () {
     e.add(e.item('hair_front'));
     expect(e.doc.layers.map((l) => l.z), containsAll([1, 6]));

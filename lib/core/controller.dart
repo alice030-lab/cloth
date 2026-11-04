@@ -212,6 +212,17 @@ class EditorController extends ChangeNotifier {
                 geometry.normalized('waistCenter').dy;
     } else if (l.kind == Kind.shoes) {
       l.scale = .075;
+      final span = switch (doc.body.gender) {
+        'masculine' => .34,
+        'neutral' => .31,
+        _ => .26,
+      };
+      if (!it.custom) {
+        l.fittedAspect = math.max(
+          it.naturalAspect,
+          span * .82 * .8 / (.075 * .94),
+        );
+      }
     } else if (l.kind == Kind.hairBack || l.kind == Kind.hairFront) {
       // Both cells contain a whole hairstyle. The front cell has an inset
       // face opening; registering it at its bounding-box crown hides the eyes.
