@@ -6,7 +6,4 @@
 <style>html,body{margin:0;width:100%;height:100%;overflow:hidden;background:#F8F3EE}#loading{font-family:serif;color:#762E3D;text-align:center;padding-top:35vh;letter-spacing:.2em}#loading small{display:block;font:14px sans-serif;margin-top:18px;color:#746660}</style>
 </head><body><div id="loading">穿搭預演<small>正在準備你的畫布…</small></div><script src="flutter_bootstrap.js" async></script><script>
 window.addEventListener('flutter-first-frame', () => document.getElementById('loading')?.remove(), {once:true});
-if ('serviceWorker' in navigator) {
-  window.addEventListener('load', () => navigator.serviceWorker.register('offline_worker.js').catch(() => {}));
-}
-</script></body></html>
+</script><script src="app_update.js" defer></script></body></html>

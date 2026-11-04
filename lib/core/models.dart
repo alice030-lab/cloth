@@ -237,6 +237,7 @@ class Item {
         'tee_white' => 1.17,
         'tee_rose' => 1.20,
         'cardigan_blue' => .83,
+        'shoes_wine' || 'shoes_cream' => 2.43,
         'jeans' => .376,
         'trousers' => .362,
         'skirt' => .664,

@@ -22,6 +22,14 @@ class EditorController extends ChangeNotifier {
   Future<void> _writes = Future.value();
   int _revision = 0;
   bool _disposed = false;
+  bool _clearing = false;
+  int _operations = 0;
+  bool get hasPendingOperation => _clearing || _operations > 0;
+  void beginOperation() => _operations++;
+  void endOperation() {
+    if (_operations > 0) _operations--;
+  }
+
   EditorController(this.repo);
   bool get canUndo => _undo.isNotEmpty;
   bool get canRedo => _redo.isNotEmpty;
@@ -92,6 +100,7 @@ class EditorController extends ChangeNotifier {
   }
 
   Future<bool> flush() async {
+    if (_clearing) return false;
     _timer?.cancel();
     if (loadError != null) {
       return false;
@@ -418,19 +427,25 @@ class EditorController extends ChangeNotifier {
   }
 
   Future<void> clearAll() async {
-    _timer?.cancel();
-    await _writes;
-    await repo.clear();
-    doc = CanvasDocument();
-    items = builtinItems();
-    _undo.clear();
-    _redo.clear();
-    selected = null;
-    welcomed = false;
-    guideDone = false;
-    loadError = null;
-    status = '已清除本機資料';
-    notifyListeners();
+    if (_clearing) return;
+    _clearing = true;
+    try {
+      _timer?.cancel();
+      await _writes;
+      await repo.clear();
+      doc = CanvasDocument();
+      items = builtinItems();
+      _undo.clear();
+      _redo.clear();
+      selected = null;
+      welcomed = false;
+      guideDone = false;
+      loadError = null;
+      status = '已清除本機資料';
+      notifyListeners();
+    } finally {
+      _clearing = false;
+    }
   }
 
   String serialize() => jsonEncode(doc.toJson());

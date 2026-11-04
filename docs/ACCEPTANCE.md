@@ -19,9 +19,9 @@
 | 命令／檢查 | 結果 |
 |---|---|
 | flutter --suppress-analytics analyze | 通過，No issues found |
-| flutter --suppress-analytics test --reporter expanded | 42 項通過：24 模型／持久化、14 編輯器 widget、4 修圖介面 |
+| flutter --suppress-analytics test --reporter expanded | 46 項通過：25 模型／持久化、17 編輯器 widget、4 修圖介面 |
 | flutter --suppress-analytics build web --release --no-web-resources-cdn | 通過；JavaScript release 與 Wasm dry run 成功，未做 Wasm runtime 驗收 |
-| python3 tool/generate_offline_worker.py | 成功，46 個同來源資源 |
+| python3 tool/generate_offline_worker.py | 成功，48 個同來源資源 |
 | python3 -m unittest discover -s tool -p test_tooling.py -v | 3 個輔助腳本測試通過 |
 | tool/browser_smoke.mjs + Chromium | 通過：試玩→套主題→體型面板→選圖→修圖匯入→立即試穿→登場→儲存→下載 PNG→reload→作品集→縮圖重開→離線 reload；360/390/430 寬截圖 |
 | tool/bootstrap_platforms.sh | 實際執行成功，產生 iOS／Android runner 並接入 adapter；不代表原生 build 通過 |
@@ -94,3 +94,7 @@
 - L2 自拍替身、姿態／手動錨點校正仍未實作，屬後續範圍；目前三種寫實人物為示範素材，不是使用者本人。
 
 因此原生「編譯成功」不等於全平台 P0 驗收完成，也不宣稱已產生能直接安裝到 iPhone 的簽署版本。
+
+## 2026-11-04 操作稽核
+
+詳見 AUDIT_2026-11-04.md。新增實際控制點、選取工具列、即時單擊、清除／自動儲存互斥、更新保存保護與正面鞋素材；目前 46 項 Flutter 測試及 7 項工具測試通過。更新提示在表單開啟或手勢／匯入／儲存進行中會保留目前視窗，沒有強制重載。正式部署紀錄於完成後補記。

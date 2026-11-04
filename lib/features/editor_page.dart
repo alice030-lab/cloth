@@ -60,12 +60,14 @@ class _EditorPageState extends State<EditorPage> with WidgetsBindingObserver {
     if (busy) {
       return;
     }
+    e.beginOperation();
     setState(() => busy = true);
     try {
       await action();
     } catch (_) {
       message('操作未完成，資料仍保留，請重試。');
     } finally {
+      e.endOperation();
       if (mounted) {
         setState(() => busy = false);
       }
@@ -86,7 +88,7 @@ class _EditorPageState extends State<EditorPage> with WidgetsBindingObserver {
             Text('讓想買的衣服，走進你的日常。'),
             SizedBox(height: 12),
             Text(
-              '建立像自己的替身，貼上衣服、放進場景。照片與作品只留在這台裝置，不必登入。',
+              '選擇示範人物、調整身材比例，再貼上想買的衣服。這不會生成你的臉或預測合身尺寸。照片與作品只留在裝置。',
               style: TextStyle(fontSize: 14),
             ),
             SizedBox(height: 12),
@@ -120,6 +122,8 @@ class _EditorPageState extends State<EditorPage> with WidgetsBindingObserver {
   Future<Uint8List> capture() async {
     await Future.wait([
       if (photographic(e.doc.body)) FashionImages.load(avatarSheet(e.doc.body)),
+      if (e.doc.layers.any((l) => l.kind == Kind.shoes))
+        FashionImages.load('footwear'),
       if (e.doc.layers.any(
         (l) => [
           'blouse',
@@ -319,23 +323,7 @@ class _EditorPageState extends State<EditorPage> with WidgetsBindingObserver {
         ),
       ),
     );
-    if (result == '精確調整' && mounted) {
-      final value = await showModalBottomSheet<CanvasLayer>(
-        context: context,
-        showDragHandle: true,
-        builder: (_) => LayerAdjustment(layer: l),
-      );
-      if (value != null) {
-        e.change(() {
-          l.x = value.x;
-          l.y = value.y;
-          l.scale = value.scale;
-          l.widthScale = value.widthScale;
-          l.rotation = value.rotation;
-          l.snappedTo = null;
-        });
-      }
-    }
+    if (result == '精確調整' && mounted) await adjustLayer(l);
     if (result == '最前') {
       e.reorder(l, true);
     }
@@ -354,6 +342,26 @@ class _EditorPageState extends State<EditorPage> with WidgetsBindingObserver {
       } else {
         e.change(() => e.snap(l));
       }
+    }
+  }
+
+  Future<void> adjustLayer(CanvasLayer l) async {
+    final value = await showModalBottomSheet<CanvasLayer>(
+      context: context,
+      isScrollControlled: true,
+      useSafeArea: true,
+      showDragHandle: true,
+      builder: (_) => LayerAdjustment(layer: l),
+    );
+    if (value != null) {
+      e.change(() {
+        l.x = value.x;
+        l.y = value.y;
+        l.scale = value.scale;
+        l.widthScale = value.widthScale;
+        l.rotation = value.rotation;
+        l.snappedTo = null;
+      });
     }
   }
 
@@ -511,7 +519,7 @@ class _EditorPageState extends State<EditorPage> with WidgetsBindingObserver {
               Text(
                 '買之前，先看看穿上的自己',
                 style: TextStyle(
-                  fontSize: 11,
+                  fontSize: 12,
                   color: Color(0xff746660),
                   letterSpacing: 1.1,
                 ),
@@ -632,8 +640,10 @@ class _EditorPageState extends State<EditorPage> with WidgetsBindingObserver {
     child: Column(
       children: [
         SizedBox(
-          height: 40,
-          child: stage == 1 || stage == 2 || stage == 0
+          height: 44,
+          child: e.selection != null
+              ? _selectedTools(e.selection!)
+              : stage == 1 || stage == 2 || stage == 0
               ? Row(
                   children: [
                     if (stage == 1 && !e.guideDone) const TutorialPointer(),
@@ -716,6 +726,46 @@ class _EditorPageState extends State<EditorPage> with WidgetsBindingObserver {
       ],
     ),
   );
+  Widget _selectedTools(CanvasLayer layer) => Row(
+    children: [
+      Expanded(
+        child: Text(
+          e.item(layer.itemId).name,
+          maxLines: 1,
+          overflow: TextOverflow.ellipsis,
+          style: const TextStyle(fontSize: 12, fontWeight: FontWeight.w600),
+        ),
+      ),
+      IconButton(
+        tooltip: '調整選取單品',
+        onPressed: () => adjustLayer(layer),
+        icon: const Icon(Icons.tune, size: 20),
+      ),
+      IconButton(
+        tooltip: layer.kind.anchor == null ? '置中選取單品' : '貼齊選取單品',
+        onPressed: () => e.change(() {
+          if (layer.kind.anchor == null) {
+            layer.x = .5;
+            layer.y = .45;
+          } else {
+            e.snap(layer);
+          }
+        }),
+        icon: const Icon(Icons.center_focus_strong, size: 20),
+      ),
+      IconButton(
+        tooltip: '移除選取單品',
+        onPressed: () => e.remove(layer.id),
+        icon: const Icon(Icons.delete_outline, size: 20),
+      ),
+      IconButton(
+        tooltip: '完成單品調整',
+        onPressed: () => e.select(null),
+        icon: const Icon(Icons.close, size: 20),
+      ),
+    ],
+  );
+
   Widget _importTile() => SizedBox(
     width: 88,
     child: InkWell(
@@ -787,29 +837,35 @@ class _EditorPageState extends State<EditorPage> with WidgetsBindingObserver {
           const SizedBox(height: 4),
           Text(
             it.name,
-            style: const TextStyle(fontSize: 10),
+            style: const TextStyle(fontSize: 12),
             maxLines: 1,
             overflow: TextOverflow.ellipsis,
           ),
         ],
       ),
     );
-    return LongPressDraggable<Item>(
-      data: it,
-      feedback: Material(
-        color: Colors.transparent,
-        child: SizedBox(
-          width: 100,
-          height: 120,
-          child: ItemArt(editor: e, item: it),
+    return Semantics(
+      button: true,
+      label: it.name,
+      excludeSemantics: true,
+      onTap: () => e.add(it),
+      onLongPress: () => manageItem(it),
+      child: LongPressDraggable<Item>(
+        data: it,
+        feedback: Material(
+          color: Colors.transparent,
+          child: SizedBox(
+            width: 100,
+            height: 120,
+            child: ItemArt(editor: e, item: it),
+          ),
         ),
-      ),
-      childWhenDragging: Opacity(opacity: .3, child: tile),
-      child: GestureDetector(
-        onTap: () => e.add(it),
-        onSecondaryTap: () => manageItem(it),
-        onDoubleTap: () => manageItem(it),
-        child: tile,
+        childWhenDragging: Opacity(opacity: .3, child: tile),
+        child: GestureDetector(
+          onTap: () => e.add(it),
+          onSecondaryTap: () => manageItem(it),
+          child: tile,
+        ),
       ),
     );
   }
@@ -853,10 +909,14 @@ class _EditorPageState extends State<EditorPage> with WidgetsBindingObserver {
     padding: const EdgeInsets.fromLTRB(16, 8, 16, 8),
     child: Row(
       children: [
-        OutlinedButton(
+        OutlinedButton.icon(
           onPressed: busy ? null : save,
-          style: OutlinedButton.styleFrom(minimumSize: const Size(52, 48)),
-          child: const Icon(Icons.bookmark_border_rounded),
+          style: OutlinedButton.styleFrom(
+            minimumSize: const Size(80, 48),
+            padding: const EdgeInsets.symmetric(horizontal: 12),
+          ),
+          icon: const Icon(Icons.bookmark_border_rounded, size: 20),
+          label: const Text('儲存'),
         ),
         const SizedBox(width: 10),
         Expanded(
@@ -876,7 +936,7 @@ class _EditorPageState extends State<EditorPage> with WidgetsBindingObserver {
         ),
         const SizedBox(width: 4),
         IconButton(
-          tooltip: '管理衣櫥（單品雙擊也可管理）',
+          tooltip: '管理衣櫥',
           onPressed: () => Navigator.push(
             context,
             MaterialPageRoute<void>(
@@ -930,6 +990,7 @@ class _EditorPageState extends State<EditorPage> with WidgetsBindingObserver {
                       captureKey: captureKey,
                       onLayers: layers,
                       onMenu: layerMenu,
+                      onAdjust: adjustLayer,
                     ),
                   );
                   final toolsHeight = b.maxHeight < 500 ? 148.0 : 166.0;
@@ -1060,6 +1121,7 @@ class _ResultPageState extends State<ResultPage> {
     if (busy) {
       return;
     }
+    ScaffoldMessenger.of(context).clearSnackBars();
     setState(() {
       busy = true;
       error = null;
@@ -1111,7 +1173,7 @@ class _ResultPageState extends State<ResultPage> {
   });
   @override
   Widget build(BuildContext context) => Scaffold(
-    appBar: AppBar(title: const Text('這次，穿得很像自己。')),
+    appBar: AppBar(title: const Text('看看這套搭配')),
     body: SafeArea(
       child: ListView(
         padding: const EdgeInsets.all(20),

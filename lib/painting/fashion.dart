@@ -163,8 +163,8 @@ const fashionSprites = <String, Rect>{
   'jeans': Rect.fromLTRB(.075, .454, .273, .981),
   'trousers': Rect.fromLTRB(.414, .454, .605, .981),
   'skirt': Rect.fromLTRB(.674, .462, .99, .938),
-  'shoes_wine': Rect.fromLTRB(.067, .034, .448, .48),
-  'shoes_cream': Rect.fromLTRB(.555, .034, .936, .48),
+  'shoes_wine': Rect.fromLTRB(.016, .37, .484, .756),
+  'shoes_cream': Rect.fromLTRB(.515, .367, .986, .756),
   'bag': Rect.fromLTRB(.072, .516, .431, .982),
   'bag_black': Rect.fromLTRB(.565, .516, .925, .982),
   'blouse': Rect.fromLTRB(.054, .012, .439, .488),
@@ -179,7 +179,9 @@ class FashionGarment extends StatelessWidget {
   String get sheet =>
       ['blouse', 'cardigan_wine', 'hair_back', 'hair_front'].contains(item.id)
       ? 'extras'
-      : item.kind == Kind.shoes || item.kind == Kind.accessory
+      : item.kind == Kind.shoes
+      ? 'footwear'
+      : item.kind == Kind.accessory
       ? 'accessories'
       : 'garments';
   Widget artwork(ui.Image image) => SpriteHitRegion(

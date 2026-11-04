@@ -27,6 +27,7 @@ void main() {
         'garments',
         'extras',
         'accessories',
+        'footwear',
         'avatar',
         'scenes',
       ].map(FashionImages.load),
@@ -234,6 +235,64 @@ void main() {
     expect(editor.doc.layers.single.toJson(), original.toJson());
     await drain(tester, editor.flush());
   });
+  testWidgets('visible corner scales rotates and undoes as a single action', (
+    tester,
+  ) async {
+    addTearDown(() => cleanup(tester));
+    editor.add(editor.item('tee_white'));
+    final original = editor.doc.layers.single.copy();
+    await tester.pumpWidget(OutfitApp(editor: editor));
+    await tester.pumpAndSettle();
+    final handle = find.byTooltip('拖曳縮放與旋轉，點選精確調整');
+    final start = tester.getCenter(handle);
+    final gesture = await tester.startGesture(start);
+    await gesture.moveTo(start + const Offset(35, 25));
+    await tester.pump();
+    expect(editor.hasPendingOperation, isTrue);
+    await gesture.moveTo(start + const Offset(120, 0));
+    await tester.pump();
+    await gesture.up();
+    await tester.pumpAndSettle();
+    expect(editor.doc.layers.single.scale, greaterThan(original.scale));
+    expect(editor.doc.layers.single.rotation.abs(), greaterThan(.05));
+    expect(editor.hasPendingOperation, isFalse);
+    editor.undo();
+    expect(editor.doc.layers.single.toJson(), original.toJson());
+    await drain(tester, editor.flush());
+  });
+  testWidgets('selected item exposes adjust remove and undo controls', (
+    tester,
+  ) async {
+    addTearDown(() => cleanup(tester));
+    editor.add(editor.item('tee_white'));
+    await tester.pumpWidget(OutfitApp(editor: editor));
+    await tester.pumpAndSettle();
+    expect(find.text('儲存'), findsOneWidget);
+    await tester.tap(find.byTooltip('調整選取單品'));
+    await tester.pumpAndSettle();
+    expect(find.byType(LayerAdjustment), findsOneWidget);
+    await tester.tap(find.text('取消'));
+    await tester.pumpAndSettle();
+    await tester.tap(find.byTooltip('移除選取單品'));
+    await tester.pumpAndSettle();
+    expect(editor.doc.layers, isEmpty);
+    await tester.tap(find.byTooltip('復原'));
+    await tester.pumpAndSettle();
+    expect(editor.doc.layers.single.itemId, 'tee_white');
+    await drain(tester, editor.flush());
+  });
+  testWidgets(
+    'one tap adds clothing without waiting for a double tap timeout',
+    (tester) async {
+      addTearDown(() => cleanup(tester));
+      await tester.pumpWidget(OutfitApp(editor: editor));
+      await tester.pumpAndSettle();
+      await tester.tap(find.text('奶油白短版上衣'));
+      await tester.pump();
+      expect(editor.doc.layers.single.itemId, 'tee_white');
+      await drain(tester, editor.flush());
+    },
+  );
   testWidgets('toolbar long press drop creates a free layer on the canvas', (
     tester,
   ) async {

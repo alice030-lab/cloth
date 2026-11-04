@@ -17,7 +17,7 @@ async function accessible(){
   const placeholder=page.locator('flt-semantics-placeholder');
   if(await placeholder.count())await placeholder.evaluate(el=>el.click());
 }
-async function shot(name){await page.getByLabel('素材載入中',{exact:true}).first().waitFor({state:'detached'});await page.screenshot({path:path.join(out,name+'.png'),fullPage:false});}
+async function shot(name){await page.getByLabel(/素材載入中/).first().waitFor({state:'detached'});await page.screenshot({path:path.join(out,name+'.png'),fullPage:false});}
 try{
   await page.goto(base);await accessible();
   await page.getByRole('button',{name:'先試玩',exact:true}).press('Enter');

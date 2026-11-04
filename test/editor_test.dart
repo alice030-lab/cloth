@@ -1,4 +1,5 @@
 import 'dart:io';
+import 'dart:async';
 import 'dart:typed_data';
 import 'dart:ui';
 import 'package:flutter_test/flutter_test.dart';
@@ -13,6 +14,17 @@ class BrokenRepository extends Repository {
   @override
   Future<void> saveDraft(CanvasDocument doc) async =>
       throw const FileSystemException('simulated full disk');
+}
+
+class PausedClearRepository extends Repository {
+  final started = Completer<void>(), release = Completer<void>();
+  PausedClearRepository(super.db);
+  @override
+  Future<void> clear() async {
+    started.complete();
+    await release.future;
+    await super.clear();
+  }
 }
 
 void main() {
@@ -262,6 +274,25 @@ void main() {
       expect(await e.repo.asset('orphan'), isNull);
     },
   );
+  test('autosave during clear cannot resurrect a removed draft', () async {
+    final repo = PausedClearRepository(
+      await databaseFactoryMemory.openDatabase('clear_race_${newId()}'),
+    );
+    final controller = EditorController(repo);
+    await controller.initialize();
+    controller.add(controller.item('tee_white'));
+    await controller.flush();
+    final clearing = controller.clearAll();
+    await repo.started.future;
+    expect(controller.hasPendingOperation, isTrue);
+    expect(await controller.flush(), isFalse);
+    repo.release.complete();
+    await clearing;
+    expect(controller.hasPendingOperation, isFalse);
+    expect(await repo.draft(), isNull);
+    controller.dispose();
+    await repo.db.close();
+  });
   test('clear removes documents binary assets and profile data', () async {
     await e.repo.putAsset('private', Uint8List.fromList([1, 2]));
     await e.welcome();

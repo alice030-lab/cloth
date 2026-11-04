@@ -4,7 +4,7 @@
 
 **公開 App：[穿搭預演](https://app.uslinkyou.com/)**。由 main 分支的 GitHub Actions 部署；詳見 [部署設定](docs/GITHUB_PAGES.md)。
 
-**目前已完成真正 Flutter Web 編譯與核心操作驗證。** 靜態分析零問題、42 項 Flutter 測試與 7 項輔助工具測試通過。Chromium 已驗證試玩、主題、體型面板、PNG 匯入、作品儲存／重新載入／重開、完成圖／前後對比卡 PNG 匯出、五場景切換與離線重載／匯入／儲存／匯出。[A01–A20 驗收表](docs/ACCEPTANCE.md) 區分通過與未測項目；iOS／Android 原生去背、實機多指操作與完整 P0 尚未全部驗證。
+**目前已完成真正 Flutter Web 編譯與核心操作驗證。** 靜態分析零問題、46 項 Flutter 測試與 7 項輔助工具測試通過。Chromium 已驗證試玩、主題、體型面板、PNG 匯入、作品儲存／重新載入／重開、完成圖／前後對比卡 PNG 匯出、五場景切換與離線重載／匯入／儲存／匯出。[A01–A20 驗收表](docs/ACCEPTANCE.md) 區分通過與未測項目；iOS／Android 原生去背、實機多指操作與完整 P0 尚未全部驗證。
 
 ## 啟動
 
@@ -60,7 +60,7 @@ flutter --suppress-analytics run -d <裝置ID>
 - 草稿自動儲存與重試、可編輯作品、副本、重新命名、刪除、前後圖卡與 PNG 匯出。
 - 離線 worker、資源引用清理、資料清除與本機隱私。
 
-`lib/core/` 為模型／控制器／解碼；`lib/data/` 為 Repository；`lib/features/` 為畫布、修圖與頁面；`lib/painting/` 為原創繪製；`native/` 為平台去背。24 個模型／持久化、14 個編輯器 widget 與 4 個修圖介面測試，包含三種尺寸、1.5 倍字體、實際拖曳／長按拖放、檔案關閉重開、解碼與透明像素還原。
+`lib/core/` 為模型／控制器／解碼；`lib/data/` 為 Repository；`lib/features/` 為畫布、修圖與頁面；`lib/painting/` 為原創繪製；`native/` 為平台去背。25 個模型／持久化、17 個編輯器 widget 與 4 個修圖介面測試，包含三種尺寸、1.5 倍字體、實際拖曳／長按拖放、檔案關閉重開、解碼與透明像素還原。
 
 使用 Sembast 統一 IndexedDB 與原生儲存，圖片以 blob asset ID 引用；文件有 schemaVersion，依賴已有真正的 pubspec.lock。衣櫥刪除採封存，清理只移除草稿、作品、衣櫥均無引用的 blob。圖片與身材不主動上傳。Web 資料依 origin 隔離，清瀏覽器資料或解除安裝會影響作品，PNG 匯出不是可編輯備份。
 
@@ -88,3 +88,13 @@ APP_URL=http://127.0.0.1:8080 CHROME_PATH=/usr/bin/chromium node tool/browser_ac
 ```
 
 此腳本操作三種性別外觀、作品重新命名／複製／刪除與取消、重開及清除資料後重新載入。`browser_smoke.mjs` 另外記錄請求，驗證實際匯入／儲存／匯出過程沒有跨來源請求。字型與引擎資源均使用同來源檔案；不支援的字形不會改向 Google 字型服務下載。原生 CI 產物為測試用途，並非 App Store 或 Play Store 上架包。
+
+## 0.3.1 操作稽核
+
+[2026-11-04 稽核報告](docs/AUDIT_2026-11-04.md) 包含修正前／後實際滑鼠操作、真正可拖曳控制點、選取操作列、清除資料競爭、更新前保存草稿及鞋子透視等問題。
+
+```bash
+APP_URL=http://127.0.0.1:8080 CHROME_PATH=/usr/bin/chromium node tool/browser_audit.mjs
+# 下面的測試會暫時修改本機 build/web/offline_worker.js，請單獨執行；結束會還原。
+APP_URL=http://127.0.0.1:8080 CHROME_PATH=/usr/bin/chromium node tool/browser_update.mjs
+```

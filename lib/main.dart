@@ -4,6 +4,7 @@ import 'data/repository.dart';
 import 'core/controller.dart';
 import 'features/editor_page.dart';
 import 'painting/art.dart';
+import 'core/reload_guard.dart';
 
 Future<void> main() async {
   WidgetsFlutterBinding.ensureInitialized();
@@ -11,7 +12,12 @@ Future<void> main() async {
     final repo = Repository(await openDatabase());
     final editor = EditorController(repo);
     await editor.initialize();
-    runApp(OutfitApp(editor: editor));
+    final navigation = UpdateNavigationObserver();
+    installReloadGuard(() async {
+      if (navigation.hasOpenPage || editor.hasPendingOperation) return false;
+      return editor.flush();
+    });
+    runApp(OutfitApp(editor: editor, updateNavigation: navigation));
   } catch (_) {
     runApp(
       MaterialApp(
@@ -83,12 +89,47 @@ ThemeData appTheme() => ThemeData(
 
 class OutfitApp extends StatelessWidget {
   final EditorController editor;
-  const OutfitApp({super.key, required this.editor});
+  final UpdateNavigationObserver? updateNavigation;
+  const OutfitApp({super.key, required this.editor, this.updateNavigation});
   @override
   Widget build(BuildContext context) => MaterialApp(
     title: '穿搭預演',
+    navigatorObservers: [?updateNavigation],
     debugShowCheckedModeBanner: false,
     theme: appTheme(),
     home: EditorPage(editor: editor),
   );
+}
+
+/// Modal previews and forms have not been committed to the draft yet. Keep
+/// them open until the user finishes them instead of discarding them on reload.
+class UpdateNavigationObserver extends NavigatorObserver {
+  final _routes = <Route<dynamic>>[];
+  bool get hasOpenPage => _routes.length > 1;
+  @override
+  void didPush(Route<dynamic> route, Route<dynamic>? previousRoute) {
+    _routes.add(route);
+  }
+
+  @override
+  void didPop(Route<dynamic> route, Route<dynamic>? previousRoute) {
+    _routes.remove(route);
+  }
+
+  @override
+  void didRemove(Route<dynamic> route, Route<dynamic>? previousRoute) {
+    _routes.remove(route);
+  }
+
+  @override
+  void didReplace({Route<dynamic>? newRoute, Route<dynamic>? oldRoute}) {
+    final index = oldRoute == null ? -1 : _routes.indexOf(oldRoute);
+    if (index >= 0) {
+      if (newRoute == null) {
+        _routes.removeAt(index);
+      } else {
+        _routes[index] = newRoute;
+      }
+    }
+  }
 }

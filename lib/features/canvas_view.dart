@@ -181,6 +181,7 @@ class CanvasView extends StatelessWidget {
   final bool interactive;
   final VoidCallback? onLayers;
   final void Function(CanvasLayer)? onMenu;
+  final void Function(CanvasLayer)? onAdjust;
   const CanvasView({
     super.key,
     required this.editor,
@@ -188,6 +189,7 @@ class CanvasView extends StatelessWidget {
     this.interactive = true,
     this.onLayers,
     this.onMenu,
+    this.onAdjust,
   });
   @override
   Widget build(BuildContext context) => LayoutBuilder(
@@ -312,18 +314,7 @@ class CanvasView extends StatelessWidget {
       icon: Icon(icon, size: 20),
     ),
   );
-  Rect rect(CanvasLayer l, Size s) {
-    final it = editor.item(l.itemId);
-    final h = l.scale * s.height * .94;
-    final w = h * it.naturalAspect * l.widthScale;
-    final centerAligned = l.kind.anchor == null;
-    return Rect.fromLTWH(
-      l.x * s.width - w / 2,
-      l.y * s.height - (centerAligned ? h / 2 : 0),
-      w,
-      h,
-    );
-  }
+  Rect rect(CanvasLayer l, Size s) => layerRect(editor, l, s);
 
   Widget _layer(CanvasLayer l, Size size) {
     final r = rect(l, size);
@@ -357,49 +348,15 @@ class CanvasView extends StatelessWidget {
     );
   }
 
-  Widget _selection(CanvasLayer l, Size size) {
-    final r = rect(l, size);
-    return Positioned.fromRect(
-      rect: r.inflate(3),
-      child: IgnorePointer(
-        child: Transform.rotate(
-          angle: l.rotation,
-          alignment: l.kind.anchor == null
-              ? Alignment.center
-              : Alignment.topCenter,
-          child: DecoratedBox(
-            decoration: BoxDecoration(
-              border: Border.all(color: Colors.white, width: 1.4),
-              borderRadius: BorderRadius.circular(4),
-            ),
-            child: Stack(
-              clipBehavior: Clip.none,
-              children: [
-                for (final align in [
-                  Alignment.topLeft,
-                  Alignment.topRight,
-                  Alignment.bottomRight,
-                  Alignment.bottomLeft,
-                ])
-                  Align(
-                    alignment: align,
-                    child: Container(
-                      width: 8,
-                      height: 8,
-                      decoration: BoxDecoration(
-                        color: paper,
-                        shape: BoxShape.circle,
-                        border: Border.all(color: wine, width: .7),
-                      ),
-                    ),
-                  ),
-              ],
-            ),
-          ),
-        ),
-      ),
-    );
-  }
+  Widget _selection(CanvasLayer l, Size size) => Positioned.fill(
+    child: SelectionControls(
+      key: ValueKey(l.id),
+      editor: editor,
+      layer: l,
+      canvasSize: size,
+      onAdjust: () => (onAdjust ?? onMenu)?.call(l),
+    ),
+  );
 }
 
 Widget sceneBackground(EditorController e, String id) {
@@ -451,6 +408,10 @@ class _GestureLayerState extends State<GestureLayer>
   );
   @override
   void dispose() {
+    if (moving) {
+      widget.editor.endOperation();
+      moving = false;
+    }
     pulse.dispose();
     super.dispose();
   }
@@ -485,6 +446,7 @@ class _GestureLayerState extends State<GestureLayer>
       onLongPress: widget.onMenu,
       onScaleStart: (d) {
         final e = widget.editor, l = widget.layer;
+        if (!moving) e.beginOperation();
         e.checkpoint();
         e.select(l.id);
         startX = l.x;
@@ -509,6 +471,8 @@ class _GestureLayerState extends State<GestureLayer>
         widget.editor.liveUpdate();
       },
       onScaleEnd: (d) {
+        if (!moving) return;
+        widget.editor.endOperation();
         setState(() => moving = false);
         widget.editor.finishGesture(widget.layer, widget.size);
       },
@@ -646,4 +610,154 @@ class CareFeedbackPainter extends CustomPainter {
   @override
   bool shouldRepaint(CareFeedbackPainter old) =>
       old.progress != progress || old.face != face || old.kind != kind;
+}
+
+Rect layerRect(EditorController editor, CanvasLayer l, Size s) {
+  final it = editor.item(l.itemId);
+  final h = l.scale * s.height * .94;
+  final w = h * it.naturalAspect * l.widthScale;
+  final centerAligned = l.kind.anchor == null;
+  return Rect.fromLTWH(
+    l.x * s.width - w / 2,
+    l.y * s.height - (centerAligned ? h / 2 : 0),
+    w,
+    h,
+  );
+}
+
+/// A real pointer control, separate from the exported artwork. The corner
+/// scales and rotates around the same pivot used to paint the garment.
+class SelectionControls extends StatefulWidget {
+  final EditorController editor;
+  final CanvasLayer layer;
+  final Size canvasSize;
+  final VoidCallback onAdjust;
+  const SelectionControls({
+    super.key,
+    required this.editor,
+    required this.layer,
+    required this.canvasSize,
+    required this.onAdjust,
+  });
+  @override
+  State<SelectionControls> createState() => _SelectionControlsState();
+}
+
+class _SelectionControlsState extends State<SelectionControls> {
+  late Offset pivotGlobal, startVector;
+  late double startScale, startRotation;
+  bool dragging = false;
+  void finishOperation() {
+    if (dragging) {
+      widget.editor.endOperation();
+      dragging = false;
+    }
+  }
+
+  @override
+  void dispose() {
+    finishOperation();
+    super.dispose();
+  }
+
+  Offset rotate(Offset v, double angle) => Offset(
+    v.dx * math.cos(angle) - v.dy * math.sin(angle),
+    v.dx * math.sin(angle) + v.dy * math.cos(angle),
+  );
+  @override
+  Widget build(BuildContext context) => LayoutBuilder(
+    builder: (context, constraints) {
+      final layer = widget.layer;
+      final r = layerRect(widget.editor, layer, widget.canvasSize);
+      final pivot = layer.kind.anchor == null ? r.center : r.topCenter;
+      final corner = pivot + rotate(r.bottomRight - pivot, layer.rotation);
+      return Stack(
+        clipBehavior: Clip.none,
+        children: [
+          Positioned.fromRect(
+            rect: r,
+            child: IgnorePointer(
+              child: Transform.rotate(
+                angle: layer.rotation,
+                alignment: layer.kind.anchor == null
+                    ? Alignment.center
+                    : Alignment.topCenter,
+                child: DecoratedBox(
+                  decoration: BoxDecoration(
+                    border: Border.all(color: Colors.white, width: 1.5),
+                    borderRadius: BorderRadius.circular(4),
+                  ),
+                ),
+              ),
+            ),
+          ),
+          Positioned(
+            left: (corner.dx - 22)
+                .clamp(0, math.max(0, widget.canvasSize.width - 44))
+                .toDouble(),
+            top: (corner.dy - 22)
+                .clamp(0, math.max(0, widget.canvasSize.height - 44))
+                .toDouble(),
+            width: 44,
+            height: 44,
+            child: MouseRegion(
+              cursor: SystemMouseCursors.resizeUpLeftDownRight,
+              child: GestureDetector(
+                onPanStart: (details) {
+                  if (!dragging) {
+                    widget.editor.beginOperation();
+                    dragging = true;
+                  }
+                  widget.editor.checkpoint();
+                  final box = context.findRenderObject() as RenderBox;
+                  pivotGlobal = box.localToGlobal(pivot);
+                  startVector = details.globalPosition - pivotGlobal;
+                  startScale = layer.scale;
+                  startRotation = layer.rotation;
+                },
+                onPanUpdate: (details) {
+                  final vector = details.globalPosition - pivotGlobal;
+                  layer.scale =
+                      (startScale *
+                              vector.distance /
+                              math.max(1, startVector.distance))
+                          .clamp(.03, 2)
+                          .toDouble();
+                  layer.rotation =
+                      (startRotation +
+                              math.atan2(vector.dy, vector.dx) -
+                              math.atan2(startVector.dy, startVector.dx) +
+                              math.pi) %
+                          (2 * math.pi) -
+                      math.pi;
+                  layer.snappedTo = null;
+                  widget.editor.liveUpdate();
+                },
+                onPanEnd: (_) {
+                  finishOperation();
+                  widget.editor.finishGesture(layer, widget.canvasSize);
+                },
+                onPanCancel: () {
+                  if (dragging) {
+                    finishOperation();
+                    widget.editor.undo();
+                  }
+                },
+                child: Material(
+                  color: paper,
+                  elevation: 2,
+                  shape: const CircleBorder(),
+                  child: IconButton(
+                    tooltip: '拖曳縮放與旋轉，點選精確調整',
+                    onPressed: widget.onAdjust,
+                    icon: const Icon(Icons.open_in_full, color: wine, size: 20),
+                  ),
+                ),
+              ),
+            ),
+          ),
+        ],
+      );
+    },
+  );
 }

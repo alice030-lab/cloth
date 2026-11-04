@@ -30,3 +30,7 @@
 ## 三種寫實外觀補充
 
 `assets/fashion/avatars-inclusive.png` 為本次使用 OpenAI image generation 製作的兩格透明圖集：成年男性與中性外觀，各自獨立取樣，與既有女性外觀共用局部網格和錨點。人物皆為虛構示範，不代表使用者的長相。不同素材的肩線與衣物初始寬度已分開校正，使用者亦可在精確調整中改變圖層寬度。
+
+## 0.3.1 透視修正
+
+`assets/fashion/footwear.png` 為本次新製作的原創透明圖集（OpenAI image generation），分成酒紅／奶油兩對正面低視角鞋，取代先前俯視鞋在畫布上的使用。原 accessories.png 的包繼續使用。素材未從參考圖或網拍剪下；不宣稱具備真實穿著／合身校準。
