@@ -237,7 +237,13 @@ class EditorController extends ChangeNotifier {
   }
 
   void add(Item it, {Offset? at}) {
-    if (it.kind == Kind.prop && !guideDone) markGuided();
+    final face = anchor('faceCenter');
+    final care = it.id == 'patch' || it.id == 'serum';
+    final nearFace =
+        at != null &&
+        (Offset((at.dx - face.dx) * .8, at.dy - face.dy)).distance < .10;
+    final applyCare = care && (at == null || nearFace);
+    if (applyCare && !guideDone) markGuided();
     change(() {
       final group = it.id == 'hair_back' || it.id == 'hair_front';
       final addItems = group
@@ -254,7 +260,13 @@ class EditorController extends ChangeNotifier {
           itemId: i.id,
           kind: i.kind,
           order: doc.layers.length + 1,
-          scale: i.kind == Kind.reference ? .4 : .15,
+          scale: i.id == 'patch'
+              ? .03
+              : i.id == 'serum'
+              ? .12
+              : i.kind == Kind.reference
+              ? .4
+              : .15,
         );
         snap(l);
         if (at != null) {
@@ -262,11 +274,16 @@ class EditorController extends ChangeNotifier {
           l.y = at.dy;
           l.snappedTo = null;
         } else if (i.kind.anchor == null) {
-          l.x = i.id == 'patch' ? .5 : .68;
-          l.y = i.id == 'patch' ? .13 : .48;
+          l.x = i.id == 'patch' ? face.dx - .025 : .68;
+          l.y = i.id == 'patch' ? face.dy + .012 : .48;
+        }
+        if (applyCare) {
+          l.activated = true;
+          careKind = i.id;
+          careEvent++;
         }
         doc.layers.add(l);
-        selected = l.id;
+        selected = applyCare ? null : l.id;
       }
     });
   }

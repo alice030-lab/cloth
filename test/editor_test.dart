@@ -39,22 +39,38 @@ void main() {
     e.dispose();
     await e.repo.db.close();
   });
-  test('care actions recalculate progress and undo their used state', () {
-    e.add(e.item('serum'));
-    final layer = e.doc.layers.single;
-    e.useCare(layer);
-    expect(e.stageDone(1), isTrue);
-    expect(e.careKind, 'serum');
-    e.undo();
-    expect(e.stageDone(1), isFalse);
-    e.useCare(e.doc.layers.single);
-    e.remove(e.doc.layers.single.id);
-    expect(e.stageDone(1), isFalse);
-    expect(
-      builtinItems().where((i) => i.kind == Kind.prop).length,
-      greaterThanOrEqualTo(8),
-    );
-  });
+  test(
+    'care applies on first tap and undo restores the previous used state',
+    () {
+      e.add(e.item('serum'));
+      expect(e.stageDone(1), isTrue);
+      expect(e.careKind, 'serum');
+      e.useCare(e.doc.layers.single);
+      expect(e.stageDone(1), isFalse);
+      e.undo();
+      expect(e.stageDone(1), isTrue);
+      e.remove(e.doc.layers.single.id);
+      expect(e.stageDone(1), isFalse);
+      expect(
+        builtinItems().where((i) => i.kind == Kind.prop).length,
+        greaterThanOrEqualTo(8),
+      );
+    },
+  );
+  test(
+    'a patch is small, placed on the cheek and applies in one undo step',
+    () {
+      e.add(e.item('patch'));
+      final patch = e.doc.layers.single;
+      expect(patch.scale, .03);
+      expect(patch.activated, isTrue);
+      expect(patch.x, lessThan(e.anchor('faceCenter').dx));
+      expect(e.selected, isNull);
+      expect(e.guideDone, isTrue);
+      e.undo();
+      expect(e.doc.layers, isEmpty);
+    },
+  );
   test('body values reject invalid measurements without mutating', () {
     final b = BodyProfile();
     expect(() => b.set('waist', double.nan), throwsArgumentError);

@@ -318,32 +318,38 @@ class CanvasView extends StatelessWidget {
 
   Widget _layer(CanvasLayer l, Size size) {
     final r = rect(l, size);
+    final target = interactive
+        ? Rect.fromCenter(
+            center: r.center,
+            width: math.max(44, r.width),
+            height: math.max(44, r.height),
+          )
+        : r;
+    final art = ItemArt(
+      editor: editor,
+      item: editor.item(l.itemId),
+      activated: l.activated,
+    );
     return Positioned.fromRect(
-      rect: r,
+      rect: target,
       child: Transform.rotate(
         angle: l.rotation,
-        alignment: l.kind.anchor == null
-            ? Alignment.center
-            : Alignment.topCenter,
+        alignment: Alignment.center,
+        origin: l.kind.anchor == null
+            ? Offset.zero
+            : r.topCenter - target.center,
         child: interactive
             ? GestureLayer(
                 editor: editor,
                 layer: l,
                 size: size,
+                expandedTouchTarget: target.size != r.size,
                 onMenu: () => onMenu?.call(l),
-                child: ItemArt(
-                  editor: editor,
-                  item: editor.item(l.itemId),
-                  activated: l.activated,
+                child: Center(
+                  child: SizedBox.fromSize(size: r.size, child: art),
                 ),
               )
-            : IgnorePointer(
-                child: ItemArt(
-                  editor: editor,
-                  item: editor.item(l.itemId),
-                  activated: l.activated,
-                ),
-              ),
+            : IgnorePointer(child: art),
       ),
     );
   }
@@ -385,6 +391,7 @@ class GestureLayer extends StatefulWidget {
   final Size size;
   final Widget child;
   final VoidCallback onMenu;
+  final bool expandedTouchTarget;
   const GestureLayer({
     super.key,
     required this.editor,
@@ -392,6 +399,7 @@ class GestureLayer extends StatefulWidget {
     required this.size,
     required this.child,
     required this.onMenu,
+    this.expandedTouchTarget = false,
   });
   @override
   State<GestureLayer> createState() => _GestureLayerState();
@@ -434,9 +442,10 @@ class _GestureLayerState extends State<GestureLayer>
         '${widget.editor.item(widget.layer.itemId).name}${widget.layer.activated ? '，已使用' : ''}',
     button: true,
     child: GestureDetector(
-      behavior:
-          (fashionSprites.containsKey(widget.layer.itemId) ||
-              widget.editor.item(widget.layer.itemId).assetId != null)
+      behavior: widget.expandedTouchTarget
+          ? HitTestBehavior.opaque
+          : (fashionSprites.containsKey(widget.layer.itemId) ||
+                widget.editor.item(widget.layer.itemId).assetId != null)
           ? HitTestBehavior.deferToChild
           : HitTestBehavior.translucent,
       onTap: () {
@@ -670,7 +679,13 @@ class _SelectionControlsState extends State<SelectionControls> {
       final layer = widget.layer;
       final r = layerRect(widget.editor, layer, widget.canvasSize);
       final pivot = layer.kind.anchor == null ? r.center : r.topCenter;
-      final corner = pivot + rotate(r.bottomRight - pivot, layer.rotation);
+      final vector = r.bottomRight - pivot;
+      final corner =
+          pivot +
+          rotate(
+            Offset(math.max(34, vector.dx), math.max(34, vector.dy)),
+            layer.rotation,
+          );
       return Stack(
         clipBehavior: Clip.none,
         children: [
